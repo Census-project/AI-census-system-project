@@ -38,7 +38,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Login failed');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Login failed' }));
+      throw new Error(errorData.error || 'Login failed');
+    }
     return res.json();
   },
 
@@ -48,7 +51,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Registration failed');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Registration failed' }));
+      throw new Error(errorData.error || 'Registration failed');
+    }
     return res.json();
   },
 
@@ -62,6 +68,143 @@ export const api = {
       body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error('Submission failed');
+    return res.json();
+  },
+
+  submitCensusBatch: async (records: CensusData[], token: string) => {
+    const res = await fetch(`${API_BASE}/api/census/batch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ records }),
+    });
+    if (!res.ok) throw new Error('Batch submission failed');
+    return res.json();
+  },
+
+  getCensusRecords: async (token: string, params: { page?: number; limit?: number; household_id?: string; status?: string; enumerator_id?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', String(params.page));
+    if (params.limit) query.set('limit', String(params.limit));
+    if (params.household_id) query.set('household_id', params.household_id);
+    if (params.status) query.set('status', params.status);
+    if (params.enumerator_id) query.set('enumerator_id', String(params.enumerator_id));
+
+    const res = await fetch(`${API_BASE}/api/census/records?${query.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to load census records');
+    return res.json();
+  },
+
+  // AI Auto Mode Endpoints
+  processNaturalQuery: async (query: string, token: string) => {
+    const res = await fetch(`${API_BASE}/api/ai/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ query }),
+    });
+    if (!res.ok) throw new Error('AI query failed');
+    return res.json();
+  },
+
+  getAIInsights: async (token: string) => {
+    const res = await fetch(`${API_BASE}/api/ai/insights`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('AI insights failed');
+    return res.json();
+  },
+
+  getValidationHints: async (record: Partial<CensusData>, token: string) => {
+    const res = await fetch(`${API_BASE}/api/ai/validation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(record),
+    });
+    if (!res.ok) throw new Error('AI validation failed');
+    return res.json();
+  },
+
+  getAnomalyScore: async (record: Partial<CensusData>, token: string) => {
+    const res = await fetch(`${API_BASE}/api/ai/anomaly`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(record),
+    });
+    if (!res.ok) throw new Error('AI anomaly check failed');
+    return res.json();
+  },
+
+  getMappingRecommendation: async (token: string) => {
+    const res = await fetch(`${API_BASE}/api/ai/mapping`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('AI mapping failed');
+    return res.json();
+  },
+
+  // Admin Endpoints
+  getUsers: async (token: string) => {
+    const res = await fetch(`${API_BASE}/api/admin/users`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to get users');
+    return res.json();
+  },
+
+  getSystemStats: async (token: string) => {
+    const res = await fetch(`${API_BASE}/api/admin/stats`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to get system stats');
+    return res.json();
+  },
+
+  exportData: async (token: string) => {
+    const res = await fetch(`${API_BASE}/api/admin/export`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to export data');
+    return res.blob();
+  },
+
+  assignSurvey: async (enumeratorId: number, surveyName: string, token: string) => {
+    const res = await fetch(`${API_BASE}/api/admin/assign-survey`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ enumeratorId, surveyName }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Failed to assign survey' }));
+      throw new Error(errorData.error || 'Failed to assign survey');
+    }
     return res.json();
   },
 };

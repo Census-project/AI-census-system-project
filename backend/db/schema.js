@@ -66,6 +66,16 @@ const initializeDatabase = async () => {
       )
     `);
 
+    // Create survey assignment table for admin workflows
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS survey_assignments (
+        id SERIAL PRIMARY KEY,
+        enumerator_id INT REFERENCES users(id) ON DELETE CASCADE,
+        survey_name VARCHAR(255) NOT NULL,
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log('Database tables initialized successfully');
   } catch (err) {
     console.error('Database initialization error:', err);

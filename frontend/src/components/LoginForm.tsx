@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Target, Bot, Smartphone, Mail, Lock, User, Building } from "lucide-react";
+import { BarChart3, Target, Bot, Smartphone, Mail, Lock, User, Building, Eye, EyeOff } from "lucide-react";
 
 interface LoginFormProps {
   onLogin: (email: string, password: string) => Promise<void>;
@@ -21,6 +21,7 @@ export default function LoginForm({ onLogin, onRegister }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -155,6 +156,7 @@ export default function LoginForm({ onLogin, onRegister }: LoginFormProps) {
                 >
                   <option value="enumerator">📝 Enumerator</option>
                   <option value="supervisor">👨‍💼 Supervisor</option>
+                  <option value="admin">🛡️ Administrator</option>
                 </select>
               </div>
               <Button type="submit" className="w-full mt-2" disabled={isLoading}>
@@ -187,13 +189,24 @@ export default function LoginForm({ onLogin, onRegister }: LoginFormProps) {
                 <Label className="flex items-center gap-2 text-sm">
                   <Lock className="w-3.5 h-3.5 text-muted-foreground" /> Password
                 </Label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
               <Button type="submit" className="w-full mt-2" disabled={isLoading}>
                 {isLoading ? "Signing In..." : "Sign In"}

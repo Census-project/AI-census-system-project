@@ -41,15 +41,26 @@ JWT_SECRET=your_jwt_secret_key
 
 ### Development
 ```bash
-npm run dev-local
+npm run dev:pg
 ```
-Starts the server on http://localhost:3001 with local JSON storage.
+Starts the PostgreSQL-backed server on `http://localhost:3000` using the environment-configured database.
+
+```bash
+npm run dev:local
+```
+Starts the local JSON-backed development server on `http://localhost:3001` using `backend/data/db.json`.
 
 ### Production
 ```bash
 npm start
 ```
-Starts the server in production mode.
+Starts the PostgreSQL-backed server in production mode.
+
+### Local JSON demo mode
+```bash
+npm run start:local
+```
+Runs the fallback JSON storage server for development without PostgreSQL.
 
 ## API Endpoints
 
@@ -59,7 +70,21 @@ Starts the server in production mode.
 
 ### Census Data
 - `POST /api/census/submit` - Submit census record (requires auth)
-- `GET /api/census/records` - Get all records (requires auth)
+- `POST /api/census/batch` - Submit multiple records for offline sync (requires auth)
+- `GET /api/census/records` - Get census records with pagination and filtering (requires auth)
+
+### AI / Analytics
+- `POST /api/ai/query` - Process a natural language analytics query (requires auth)
+- `GET /api/ai/insights` - Generate AI-driven insights from current census data (requires auth)
+- `POST /api/ai/validation` - Get validation hints for a census record (requires auth)
+- `POST /api/ai/anomaly` - Compute an anomaly score for a census record (requires auth)
+- `GET /api/ai/mapping` - Get mapping/recommendation guidance from collected GPS data (requires auth)
+
+### Admin
+- `GET /api/admin/users` - Get users and assignment details (admin only)
+- `POST /api/admin/assign-survey` - Assign a survey to an enumerator (admin only)
+- `GET /api/admin/stats` - Get system statistics (admin only)
+- `GET /api/admin/export` - Export data as JSON (admin only)
 
 ## Data Storage
 

@@ -17,6 +17,61 @@
       "role": "enumerator",
       "status": "active",
       "created_at": "2026-03-14T13:42:23.547Z"
+    },
+    {
+      "id": 3,
+      "username": "elizabeth",
+      "email": "lizzy@gmmail.com",
+      "password_hash": "$2a$10$3Y6WJeaDCGhVhkPzjUXZPe4Vy0jCd9KpBdEWQz4wgaHDvA0fkWpEa",
+      "role": "enumerator",
+      "status": "active",
+      "created_at": "2026-05-05T16:28:27.984Z"
+    },
+    {
+      "id": 4,
+      "username": "testuser2",
+      "email": "test2@example.com",
+      "password_hash": "$2a$10$XErdE/r5UHIDyIPF0mUOwewm/kQYevVBZfnu.VStxlyZWVkta9dWO",
+      "role": "enumerator",
+      "status": "active",
+      "created_at": "2026-05-05T16:49:46.607Z"
+    },
+    {
+      "id": 5,
+      "username": "testuser3",
+      "email": "test3@example.com",
+      "password_hash": "$2a$10$3haSO7dPJlS7ghz/XUD9f.nxnTmS41IgFUAdiUgSVagNJhTntrBCG",
+      "role": "invalid",
+      "status": "active",
+      "created_at": "2026-05-05T16:51:30.392Z"
+    },
+    {
+      "id": 6,
+      "username": "testuser5",
+      "email": "test5@example.com",
+      "password_hash": "$2a$10$NPLzxaSAnZlheJNf4UleaeiGCyotkQSS9PWPyzGFnRFw2.7qKlw82",
+      "role": "enumerator",
+      "status": "active",
+      "created_at": "2026-05-05T16:54:39.380Z"
+    },
+    {
+      "id": 7,
+      "username": "elizabeth2",
+      "email": "lizzy@gmail.com",
+      "password_hash": "$2a$10$nd39wy2ErvLSVKxCeMukSeSAz85G0EdztxtbZOQUzZdJViQbklWwK",
+      "role": "enumerator",
+      "status": "active",
+      "created_at": "2026-05-05T16:55:45.513Z"
+    },
+    {
+      "id": 8,
+      "username": "testadmin",
+      "email": "admin@census.test",
+      "password_hash": "$2a$10$9DEck7ORj/t9bYdK/VQy1eSgRl5Tuf4wymsbrUnyyVttZISdMC42i",
+      "role": "admin",
+      "status": "active",
+      "created_at": "2026-05-09T13:38:18.744Z",
+      "assigned_surveys": []
     }
   ],
   "censusRecords": []

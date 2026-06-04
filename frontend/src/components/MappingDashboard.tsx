@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
 import { Compass, Locate, MapPinned, RadioTower, Route, Satellite } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getMappingRecommendation } from "@/lib/ai";
+import { api } from "@/lib/api";
+import { useState, useEffect } from "react";
 
 interface CensusRecord {
   household_id: string;
@@ -125,6 +126,28 @@ function mapPoint(record: CensusRecord, index: number) {
 }
 
 export default function MappingDashboard() {
+  const [recommendation, setRecommendation] = useState("Loading AI mapping recommendation...");
+
+  useEffect(() => {
+    const fetchRecommendation = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setRecommendation("Authentication required for AI mapping recommendations");
+        return;
+      }
+
+      try {
+        const response = await api.getMappingRecommendation(token);
+        setRecommendation(response.recommendation);
+      } catch (error) {
+        console.error('Failed to fetch mapping recommendation:', error);
+        setRecommendation("Failed to load AI mapping recommendation");
+      }
+    };
+
+    fetchRecommendation();
+  }, []);
+
   const mappedRecords = [...fallbackRecords, ...readPendingRecords()]
     .filter((record) => record.gps_latitude !== null && record.gps_longitude !== null)
     .slice(0, 12)
@@ -133,8 +156,6 @@ export default function MappingDashboard() {
   const onlineNodes = mappedRecords.filter((record) => record.submission_type === "online").length;
   const offlineNodes = mappedRecords.length - onlineNodes;
   const northernmost = [...mappedRecords].sort((a, b) => (b.gps_latitude ?? 0) - (a.gps_latitude ?? 0))[0];
-  const allRecords = [...fallbackRecords, ...readPendingRecords()];
-  const recommendation = getMappingRecommendation(allRecords);
 
   return (
     <section className="space-y-6" aria-labelledby="mapping-heading">

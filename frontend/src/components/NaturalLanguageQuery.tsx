@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, BarChart3, Users, MapPin, TrendingUp } from "lucide-react";
 import type { CensusData } from "@/lib/api";
+import { api } from "@/lib/api";
 
 interface QueryResult {
   type: "count" | "average" | "list" | "percentage" | "trend";
@@ -12,103 +13,6 @@ interface QueryResult {
   value: string | number;
   details?: string;
   data?: [string, number][] | { date: string; count: number }[];
-}
-
-function processNaturalQuery(query: string, records: CensusData[]): QueryResult | null {
-  const lowerQuery = query.toLowerCase();
-
-  // Count queries
-  if (lowerQuery.includes("how many") || lowerQuery.includes("count") || lowerQuery.includes("total")) {
-    if (lowerQuery.includes("male") || lowerQuery.includes("men")) {
-      const count = records.filter(r => r.gender === "M").length;
-      return { type: "count", title: "Male Records", value: count };
-    }
-    if (lowerQuery.includes("female") || lowerQuery.includes("women")) {
-      const count = records.filter(r => r.gender === "F").length;
-      return { type: "count", title: "Female Records", value: count };
-    }
-    if (lowerQuery.includes("geotagged") || lowerQuery.includes("coordinates")) {
-      const count = records.filter(r => r.gps_latitude && r.gps_longitude).length;
-      return { type: "count", title: "Geotagged Records", value: count };
-    }
-    if (lowerQuery.includes("online")) {
-      const count = records.filter(r => r.submission_type === "online").length;
-      return { type: "count", title: "Online Submissions", value: count };
-    }
-    if (lowerQuery.includes("offline")) {
-      const count = records.filter(r => r.submission_type !== "online").length;
-      return { type: "count", title: "Offline Submissions", value: count };
-    }
-    return { type: "count", title: "Total Records", value: records.length };
-  }
-
-  // Average queries
-  if (lowerQuery.includes("average") || lowerQuery.includes("avg") || lowerQuery.includes("mean")) {
-    if (lowerQuery.includes("age")) {
-      const avg = Math.round(records.reduce((sum, r) => sum + Number(r.age), 0) / records.length);
-      return { type: "average", title: "Average Age", value: avg, details: "years" };
-    }
-  }
-
-  // Location queries
-  if (lowerQuery.includes("location") || lowerQuery.includes("area") || lowerQuery.includes("region")) {
-    const locations = records.reduce<Record<string, number>>((acc, r) => {
-      const loc = r.location_address.split(",")[0]?.trim() || "Unknown";
-      acc[loc] = (acc[loc] || 0) + 1;
-      return acc;
-    }, {});
-    const topLocation = Object.entries(locations).sort((a, b) => b[1] - a[1])[0];
-    return {
-      type: "list",
-      title: "Top Location",
-      value: topLocation ? `${topLocation[0]} (${topLocation[1]} records)` : "No data",
-      data: Object.entries(locations).slice(0, 5)
-    };
-  }
-
-  // Age distribution queries
-  if (lowerQuery.includes("age") && (lowerQuery.includes("distribution") || lowerQuery.includes("breakdown"))) {
-    const ageGroups = records.reduce<Record<string, number>>((acc, r) => {
-      const age = Number(r.age);
-      const group = age <= 17 ? "0-17" : age <= 35 ? "18-35" : age <= 59 ? "36-59" : "60+";
-      acc[group] = (acc[group] || 0) + 1;
-      return acc;
-    }, {});
-    return {
-      type: "list",
-      title: "Age Distribution",
-      value: "Breakdown by age groups",
-      data: Object.entries(ageGroups)
-    };
-  }
-
-  // Percentage queries
-  if (lowerQuery.includes("percentage") || lowerQuery.includes("percent") || lowerQuery.includes("%")) {
-    if (lowerQuery.includes("geotagged")) {
-      const percentage = Math.round((records.filter(r => r.gps_latitude && r.gps_longitude).length / records.length) * 100);
-      return { type: "percentage", title: "Geotagged Records", value: `${percentage}%` };
-    }
-    if (lowerQuery.includes("online")) {
-      const percentage = Math.round((records.filter(r => r.submission_type === "online").length / records.length) * 100);
-      return { type: "percentage", title: "Online Submissions", value: `${percentage}%` };
-    }
-  }
-
-  // Trend queries
-  if (lowerQuery.includes("trend") || lowerQuery.includes("recent") || lowerQuery.includes("last")) {
-    const recent = records.slice(-5).map(r => ({
-      date: new Date(r.timestamp).toLocaleDateString(),
-      count: 1
-    }));
-    return {
-      type: "trend",
-      title: "Recent Submissions",
-      value: `${recent.length} records in last submissions`,
-      data: recent
-    };
-  }
-
-  return null;
 }
 
 export default function NaturalLanguageQuery({ records }: { records: CensusData[] }) {
@@ -120,12 +24,25 @@ export default function NaturalLanguageQuery({ records }: { records: CensusData[
     if (!query.trim()) return;
 
     setIsSearching(true);
-    // Simulate processing time
-    setTimeout(() => {
-      const processedResult = processNaturalQuery(query, records);
-      setResult(processedResult);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setResult({ type: "count", title: "Error", value: "Authentication required" });
       setIsSearching(false);
-    }, 500);
+      return;
+    }
+
+    try {
+      const response = await api.processNaturalQuery(query, token);
+      if (response.success) {
+        setResult(response.result);
+      } else {
+        setResult({ type: "count", title: "Query Not Understood", value: response.message });
+      }
+    } catch (error) {
+      console.error('AI query error:', error);
+      setResult({ type: "count", title: "Error", value: "Failed to process query" });
+    }
+    setIsSearching(false);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

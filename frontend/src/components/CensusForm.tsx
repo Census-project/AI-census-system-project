@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { useMutation } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -6,75 +6,123 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { MapPin, RefreshCw, Send, Trash2, Sparkles, Check } from "lucide-react";
 import { api, type CensusData } from "@/lib/api";
-import { computeAnomalyScore, getValidationHints, guessGenderFromFirstName } from "@/lib/ai";
+import { guessGenderFromFirstName } from "@/lib/ai";
+
+interface HouseholdMember {
+  first_name: string;
+  last_name: string;
+  age: string;
+  gender: string;
+  phone: string;
+  employment_status: string;
+  education_level: string;
+  health_status: string;
+  has_disability: boolean;
+  disability_type: string;
+}
 
 interface CensusFormProps {
   isOnline: boolean;
 }
 
+const emptyMember = (): HouseholdMember => ({
+  first_name: "",
+  last_name: "",
+  age: "",
+  gender: "",
+  phone: "",
+  employment_status: "",
+  education_level: "",
+  health_status: "",
+  has_disability: false,
+  disability_type: "",
+});
+
 export default function CensusForm({ isOnline }: CensusFormProps) {
-  const [formData, setFormData] = useState({
+  const [household, setHousehold] = useState({
     household_id: "",
-    first_name: "",
-    last_name: "",
-    age: "",
-    gender: "",
-    phone: "",
     location_address: "",
     gps_latitude: null as number | null,
     gps_longitude: null as number | null,
-    employment_status: "",
-    education_level: "",
-    health_status: "",
-    has_disability: false,
-    disability_type: "",
   });
+  const [members, setMembers] = useState<HouseholdMember[]>([emptyMember()]);
   const [aiHints, setAiHints] = useState<string[]>([]);
   const [genderSuggestion, setGenderSuggestion] = useState<string | null>(null);
   const [anomalyScore, setAnomalyScore] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pendingSubmissions, setPendingSubmissions] = useState<unknown[]>(
-    JSON.parse(localStorage.getItem("pendingSubmissions") || "[]")
-  );
+  const [pendingSubmissions, setPendingSubmissions] = useState<CensusData[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("pendingSubmissions") || "[]");
+    } catch {
+      return [];
+    }
+  });
   const [suggestions, setSuggestions] = useState({
     household_id: "",
     location_address: "",
     phone: "",
   });
-  const [adaptiveFields, setAdaptiveFields] = useState({
-    showEmployment: false,
-    showEducation: false,
-    showHealth: false,
-    showDisability: false,
-  });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
-  const submitMutation = useMutation({
-    mutationFn: api.submitCensus,
+  const previewRecord: CensusData = {
+    household_id: household.household_id,
+    first_name: members[0].first_name,
+    last_name: members[0].last_name,
+    age: members[0].age,
+    gender: members[0].gender,
+    phone: members[0].phone,
+    location_address: household.location_address,
+    gps_latitude: household.gps_latitude,
+    gps_longitude: household.gps_longitude,
+    employment_status: members[0].employment_status,
+    education_level: members[0].education_level,
+    health_status: members[0].health_status,
+    has_disability: members[0].has_disability,
+    disability_type: members[0].disability_type,
+    submission_type: "online",
+    timestamp: new Date().toISOString(),
+  };
+
+  const batchMutation = useMutation({
+    mutationFn: async (records: CensusData[]) => {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Missing auth token');
+      return api.submitCensusBatch(records, token);
+    },
     onSuccess: () => {
-      alert("Submission accepted by AI-assisted data gateway.");
+      alert('Submission accepted by AI-assisted data gateway.');
       resetForm();
     },
-    onError: (error: Error) => {
-      alert(error.message || "Submission failed.");
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Submission failed.';
+      alert(message);
     },
   });
 
   useEffect(() => {
-    setAiHints(getValidationHints(formData));
-    setGenderSuggestion(guessGenderFromFirstName(formData.first_name));
-    setAnomalyScore(computeAnomalyScore(formData));
+    const updateAIHints = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
-    // Adaptive survey logic
-    const age = Number(formData.age);
-    setAdaptiveFields({
-      showEmployment: age >= 15, // Employment questions for working age
-      showEducation: age >= 5 && age <= 25, // Education for school age
-      showHealth: age >= 60 || age <= 5, // Health questions for elderly and children
-      showDisability: true, // Always show disability questions
-    });
-  }, [formData]);
+      try {
+        const [hintsResponse, anomalyResponse] = await Promise.all([
+          api.getValidationHints(previewRecord, token),
+          api.getAnomalyScore(previewRecord, token),
+        ]);
+        setAiHints(hintsResponse.hints);
+        setAnomalyScore(anomalyResponse.anomalyScore);
+      } catch (error) {
+        console.error('AI validation error:', error);
+        setAiHints([]);
+        setAnomalyScore(0);
+      }
+    };
+
+    const timeoutId = setTimeout(updateAIHints, 500);
+    setGenderSuggestion(members[0].first_name ? guessGenderFromFirstName(members[0].first_name) : null);
+    return () => clearTimeout(timeoutId);
+  }, [household, members]);
 
   const generateSuggestions = () => {
     const existingRecords = JSON.parse(localStorage.getItem("pendingSubmissions") || "[]");
@@ -92,70 +140,92 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
     setShowSuggestions(true);
   };
 
-  const generateHouseholdId = () => {
-    const id = `HH-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    setFormData({ ...formData, household_id: id });
-  };
-
   const getLocation = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
         setCurrentLocation(loc);
-        setFormData({ ...formData, gps_latitude: loc.latitude, gps_longitude: loc.longitude });
+        setHousehold((prev) => ({ ...prev, gps_latitude: loc.latitude, gps_longitude: loc.longitude }));
       },
-      () => alert("Unable to get location."),
+      () => alert('Unable to get location.'),
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
   const resetForm = () => {
-    setFormData({
-      household_id: "", first_name: "", last_name: "", age: "",
-      gender: "", phone: "", location_address: "", gps_latitude: null, gps_longitude: null,
-      employment_status: "", education_level: "", health_status: "",
-      has_disability: false, disability_type: "",
-    });
+    setHousehold({ household_id: '', location_address: '', gps_latitude: null, gps_longitude: null });
+    setMembers([emptyMember()]);
     setCurrentLocation(null);
     setShowSuggestions(false);
   };
 
   const validateForm = () => {
-    if (!formData.household_id.trim()) return "Household ID is required";
-    if (!formData.first_name.trim() || !formData.last_name.trim()) return "Full name is required";
-    if (!formData.age || isNaN(Number(formData.age)) || Number(formData.age) < 0) return "Valid age is required";
-    if (!formData.gender) return "Gender is required";
-    if (!formData.location_address.trim()) return "Location is required";
+    if (!household.household_id.trim()) return 'Household ID is required';
+    if (!household.location_address.trim()) return 'Location is required';
+    for (const member of members) {
+      if (!member.first_name.trim() || !member.last_name.trim()) return 'Each household member needs a first and last name.';
+      if (!member.age || isNaN(Number(member.age)) || Number(member.age) < 0) return 'Each household member needs a valid age.';
+      if (!member.gender) return 'Each household member needs a gender.';
+    }
     return null;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const error = validateForm();
     if (error) {
       alert(error);
       return;
     }
+
     setIsSubmitting(true);
-    const token = localStorage.getItem("token");
-    const data: CensusData = { ...formData, submission_type: isOnline ? "online" : "offline", timestamp: new Date().toISOString() };
+    const records = members.map((member) => ({
+      household_id: household.household_id,
+      first_name: member.first_name,
+      last_name: member.last_name,
+      age: member.age,
+      gender: member.gender,
+      phone: member.phone,
+      location_address: household.location_address,
+      gps_latitude: household.gps_latitude,
+      gps_longitude: household.gps_longitude,
+      employment_status: member.employment_status,
+      education_level: member.education_level,
+      health_status: member.health_status,
+      has_disability: member.has_disability,
+      disability_type: member.disability_type,
+      submission_type: isOnline ? 'online' : 'offline',
+      timestamp: new Date().toISOString(),
+    })) as CensusData[];
+
+    const token = localStorage.getItem('token');
 
     if (isOnline && token) {
-      submitMutation.mutate(data);
+      batchMutation.mutate(records);
     } else if (isOnline && !token) {
-      alert("Please login to submit online.");
+      alert('Please login to submit online.');
     } else {
-      const updated = [...pendingSubmissions, data];
+      const updated = [...pendingSubmissions, ...records];
       setPendingSubmissions(updated);
-      localStorage.setItem("pendingSubmissions", JSON.stringify(updated));
-      alert("Stored for offline sync.");
+      localStorage.setItem('pendingSubmissions', JSON.stringify(updated));
+      alert('Stored for offline sync.');
       resetForm();
     }
+
     setIsSubmitting(false);
   };
 
-  const update = (field: string, value: string | boolean) => setFormData({ ...formData, [field]: value });
+  const updateHousehold = (field: string, value: string | number | boolean) => {
+    setHousehold((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateMember = (index: number, field: keyof HouseholdMember, value: string | boolean) => {
+    setMembers((prev) => prev.map((member, i) => (i === index ? { ...member, [field]: value } : member)));
+  };
+
+  const addMember = () => setMembers((prev) => [...prev, emptyMember()]);
+  const removeMember = (index: number) => setMembers((prev) => prev.filter((_, i) => i !== index));
 
   return (
     <motion.div
@@ -164,11 +234,10 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
       transition={{ duration: 0.4, delay: 0.15 }}
       className="glass-card overflow-hidden"
     >
-      {/* Header */}
       <div className="bg-primary px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-primary-foreground">Household Census Data Collection</h2>
-          <p className="mt-1 text-xs text-primary-foreground/80">AI-powered validation and live situational suggestions keep submissions accurate.</p>
+          <p className="mt-1 text-xs text-primary-foreground/80">Capture every household member in one sweep, with smarter validation and batch submission.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -190,16 +259,16 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
       </div>
 
       <div className="space-y-3 border-b border-border/80 bg-muted/40 px-6 py-4">
-        <p className="text-sm text-muted-foreground">AI-assisted quality checks are active for every submission.</p>
+        <p className="text-sm text-muted-foreground">Submit household profiles in one session. Each member record is stored separately for accurate analytics.</p>
         <div className="flex flex-wrap gap-2">
           <span className="rounded-full border border-border bg-background/80 px-3 py-1 text-xs text-foreground">
             Anomaly score: {anomalyScore}%
           </span>
-          {genderSuggestion && !formData.gender ? (
+          {genderSuggestion && (
             <span className="rounded-full border border-border bg-background/80 px-3 py-1 text-xs text-foreground">
               Suggested gender: {genderSuggestion}
             </span>
-          ) : null}
+          )}
         </div>
         {aiHints.length > 0 ? (
           <ul className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
@@ -223,18 +292,14 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
               size="sm"
               variant="outline"
               onClick={() => {
-                setFormData(prev => ({
-                  ...prev,
-                  household_id: suggestions.household_id || prev.household_id,
-                  location_address: suggestions.location_address || prev.location_address,
-                  phone: suggestions.phone || prev.phone,
-                }));
+                updateHousehold('household_id', suggestions.household_id || household.household_id);
+                updateHousehold('location_address', suggestions.location_address || household.location_address);
+                setMembers((prev) => prev.map((member) => ({ ...member, phone: suggestions.phone ? suggestions.phone : member.phone })));
                 setShowSuggestions(false);
               }}
               className="text-xs"
             >
-              <Check className="w-3 h-3 mr-1" />
-              Apply All
+              <Check className="w-3 h-3 mr-1" /> Apply All
             </Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
@@ -261,62 +326,146 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
       )}
 
       <form onSubmit={handleSubmit} className="p-6 space-y-8">
-        {/* Household */}
         <Section title="Household Information">
           <div className="space-y-1.5">
             <Label>Household ID</Label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-col sm:flex-row">
               <Input
-                value={formData.household_id}
-                onChange={(e) => update("household_id", e.target.value)}
+                value={household.household_id}
+                onChange={(e) => updateHousehold('household_id', e.target.value)}
                 placeholder="Auto-generate or enter manually"
                 required
               />
-              <Button type="button" variant="secondary" onClick={generateHouseholdId} className="shrink-0">
+              <Button type="button" variant="secondary" onClick={() => updateHousehold('household_id', `HH-${Date.now()}-${Math.floor(Math.random() * 1000)}`)} className="shrink-0">
                 <RefreshCw className="w-4 h-4 mr-1.5" /> Generate
               </Button>
             </div>
           </div>
         </Section>
 
-        {/* Personal */}
-        <Section title="Personal Information">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="First Name">
-              <Input value={formData.first_name} onChange={(e) => update("first_name", e.target.value)} required />
-            </Field>
-            <Field label="Last Name">
-              <Input value={formData.last_name} onChange={(e) => update("last_name", e.target.value)} required />
-            </Field>
-            <Field label="Age">
-              <Input type="number" min={0} max={150} value={formData.age} onChange={(e) => update("age", e.target.value)} required />
-            </Field>
-            <Field label="Gender">
-              <select
-                value={formData.gender}
-                onChange={(e) => update("gender", e.target.value)}
-                required
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Select Gender</option>
-                <option value="M">Male</option>
-                <option value="F">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </Field>
-            <Field label="Phone Number" className="sm:col-span-2">
-              <Input type="tel" value={formData.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+234xxxxxxxxxx" />
-            </Field>
+        <Section title="Household Members">
+          <div className="space-y-4">
+            {members.map((member, index) => (
+              <div key={index} className="rounded-3xl border border-border/70 bg-background/80 p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Person {index + 1}</p>
+                    <p className="text-xs text-muted-foreground">Enter the personal details for this household member.</p>
+                  </div>
+                  {members.length > 1 && (
+                    <Button type="button" variant="outline" onClick={() => removeMember(index)} className="text-xs">
+                      Remove
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="First Name">
+                    <Input value={member.first_name} onChange={(e) => updateMember(index, 'first_name', e.target.value)} required />
+                  </Field>
+                  <Field label="Last Name">
+                    <Input value={member.last_name} onChange={(e) => updateMember(index, 'last_name', e.target.value)} required />
+                  </Field>
+                  <Field label="Age">
+                    <Input type="number" min={0} max={150} value={member.age} onChange={(e) => updateMember(index, 'age', e.target.value)} required />
+                  </Field>
+                  <Field label="Gender">
+                    <select
+                      value={member.gender}
+                      onChange={(e) => updateMember(index, 'gender', e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="M">Male</option>
+                      <option value="F">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </Field>
+                  <Field label="Phone Number" className="sm:col-span-2">
+                    <Input type="tel" value={member.phone} onChange={(e) => updateMember(index, 'phone', e.target.value)} placeholder="+234xxxxxxxxxx" />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <Field label="Employment Status">
+                    <select
+                      value={member.employment_status}
+                      onChange={(e) => updateMember(index, 'employment_status', e.target.value)}
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">Select Status</option>
+                      <option value="employed">Employed</option>
+                      <option value="self-employed">Self-employed</option>
+                      <option value="unemployed">Unemployed</option>
+                      <option value="student">Student</option>
+                      <option value="retired">Retired</option>
+                      <option value="homemaker">Homemaker</option>
+                    </select>
+                  </Field>
+                  <Field label="Education Level">
+                    <select
+                      value={member.education_level}
+                      onChange={(e) => updateMember(index, 'education_level', e.target.value)}
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">Select Level</option>
+                      <option value="none">No formal education</option>
+                      <option value="primary">Primary school</option>
+                      <option value="secondary">Secondary school</option>
+                      <option value="tertiary">Tertiary education</option>
+                      <option value="vocational">Vocational training</option>
+                    </select>
+                  </Field>
+                  <Field label="Health Status">
+                    <select
+                      value={member.health_status}
+                      onChange={(e) => updateMember(index, 'health_status', e.target.value)}
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">Select Status</option>
+                      <option value="excellent">Excellent</option>
+                      <option value="good">Good</option>
+                      <option value="fair">Fair</option>
+                      <option value="poor">Poor</option>
+                      <option value="chronic">Chronic condition</option>
+                    </select>
+                  </Field>
+                  <Field label="Disability Status">
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={member.has_disability}
+                          onChange={(e) => updateMember(index, 'has_disability', e.target.checked)}
+                          className="rounded border-input"
+                        />
+                        <span className="text-sm">Has disability or special needs</span>
+                      </label>
+                      {member.has_disability && (
+                        <Input
+                          placeholder="Specify disability type"
+                          value={member.disability_type}
+                          onChange={(e) => updateMember(index, 'disability_type', e.target.value)}
+                          className="mt-2"
+                        />
+                      )}
+                    </div>
+                  </Field>
+                </div>
+              </div>
+            ))}
+            <Button type="button" variant="outline" onClick={addMember}>
+              Add another household member
+            </Button>
           </div>
         </Section>
 
-        {/* Location */}
         <Section title="Location Information">
           <div className="space-y-4">
             <Field label="Address">
               <Input
-                value={formData.location_address}
-                onChange={(e) => update("location_address", e.target.value)}
+                value={household.location_address}
+                onChange={(e) => updateHousehold('location_address', e.target.value)}
                 placeholder="Street address, city, state"
                 required
               />
@@ -338,118 +487,10 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
           </div>
         </Section>
 
-        {/* Adaptive Employment Section */}
-        {adaptiveFields.showEmployment && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Section title="Employment Information">
-              <Field label="Employment Status">
-                <select
-                  value={formData.employment_status || ""}
-                  onChange={(e) => update("employment_status", e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Select Status</option>
-                  <option value="employed">Employed</option>
-                  <option value="self-employed">Self-employed</option>
-                  <option value="unemployed">Unemployed</option>
-                  <option value="student">Student</option>
-                  <option value="retired">Retired</option>
-                  <option value="homemaker">Homemaker</option>
-                </select>
-              </Field>
-            </Section>
-          </motion.div>
-        )}
-
-        {/* Adaptive Education Section */}
-        {adaptiveFields.showEducation && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Section title="Education Information">
-              <Field label="Education Level">
-                <select
-                  value={formData.education_level || ""}
-                  onChange={(e) => update("education_level", e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Select Level</option>
-                  <option value="none">No formal education</option>
-                  <option value="primary">Primary school</option>
-                  <option value="secondary">Secondary school</option>
-                  <option value="tertiary">Tertiary education</option>
-                  <option value="vocational">Vocational training</option>
-                </select>
-              </Field>
-            </Section>
-          </motion.div>
-        )}
-
-        {/* Adaptive Health Section */}
-        {adaptiveFields.showHealth && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Section title="Health Information">
-              <Field label="Health Status">
-                <select
-                  value={formData.health_status || ""}
-                  onChange={(e) => update("health_status", e.target.value)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">Select Status</option>
-                  <option value="excellent">Excellent</option>
-                  <option value="good">Good</option>
-                  <option value="fair">Fair</option>
-                  <option value="poor">Poor</option>
-                  <option value="chronic">Chronic condition</option>
-                </select>
-              </Field>
-            </Section>
-          </motion.div>
-        )}
-
-        {/* Disability Section - Always shown */}
-        <Section title="Disability & Accessibility">
-          <Field label="Disability Status">
-            <div className="space-y-2">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.has_disability || false}
-                  onChange={(e) => update("has_disability", e.target.checked.toString())}
-                  className="rounded border-input"
-                />
-                <span className="text-sm">Has disability or special needs</span>
-              </label>
-              {formData.has_disability === "true" && (
-                <Input
-                  placeholder="Specify disability type (optional)"
-                  value={formData.disability_type || ""}
-                  onChange={(e) => update("disability_type", e.target.value)}
-                  className="mt-2"
-                />
-              )}
-            </div>
-          </Field>
-        </Section>
-
-        {/* Actions */}
         <div className="flex gap-3 pt-4 border-t border-border">
           <Button type="submit" disabled={isSubmitting} className="flex-1">
             <Send className="w-4 h-4 mr-2" />
-            {isSubmitting ? "Submitting..." : isOnline ? "Submit Online" : "Store for Later"}
+            {isSubmitting ? 'Submitting...' : isOnline ? 'Submit Online' : 'Store for Later'}
           </Button>
           <Button type="button" variant="outline" onClick={resetForm}>
             <Trash2 className="w-4 h-4 mr-1.5" /> Clear
@@ -460,7 +501,7 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-primary border-b-2 border-primary pb-2">{title}</h3>
@@ -469,7 +510,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
     <div className={`space-y-1.5 ${className || ""}`}>
       <Label className="text-sm">{label}</Label>

@@ -11,14 +11,36 @@ interface AppHeaderProps {
   onLogout: () => void;
 }
 
-const navItems = [
-  { id: "collect", label: "Collect", icon: FileText },
-  { id: "analytics", label: "Analytics", icon: TrendingUp },
-  { id: "mapping", label: "Mapping", icon: Map },
-  { id: "assistant", label: "AI Assistant", icon: Bot },
-];
+const getNavItems = (role: string) => {
+  if (role === "admin") {
+    return [
+      { id: "overview", label: "Admin", icon: BarChart3 },
+      { id: "analytics", label: "Analytics", icon: TrendingUp },
+      { id: "mapping", label: "Mapping", icon: Map },
+      { id: "assistant", label: "AI Assistant", icon: Bot },
+    ];
+  }
+
+  if (role === "supervisor") {
+    return [
+      { id: "supervisor", label: "Supervisor", icon: BarChart3 },
+      { id: "analytics", label: "Analytics", icon: TrendingUp },
+      { id: "mapping", label: "Mapping", icon: Map },
+      { id: "assistant", label: "AI Assistant", icon: Bot },
+    ];
+  }
+
+  return [
+    { id: "collect", label: "Field Work", icon: FileText },
+    { id: "analytics", label: "Analytics", icon: TrendingUp },
+    { id: "mapping", label: "Mapping", icon: Map },
+    { id: "assistant", label: "AI Assistant", icon: Bot },
+  ];
+};
 
 export default function AppHeader({ username, role, isOnline, activeTab, onTabChange, onLogout }: AppHeaderProps) {
+  const navItems = getNavItems(role);
+
   return (
     <header className="sticky top-0 z-50 bg-card border-b border-border backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">

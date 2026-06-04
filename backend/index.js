@@ -8,6 +8,8 @@ const { initializeDatabase } = require('./db/schema');
 const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
 const censusRoutes = require('./routes/census');
+const aiRoutes = require('./routes/ai');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -40,6 +42,8 @@ const startServer = async () => {
     // Register routes
     app.use('/api/auth', authRoutes);
     app.use('/api/census', censusRoutes);
+    app.use('/api/ai', aiRoutes);
+    app.use('/api/admin', adminRoutes);
 
     // Error handling middleware (must be last)
     app.use(errorHandler);

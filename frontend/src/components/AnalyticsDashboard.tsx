@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
 import { Activity, BarChart3, Clock3, Database, PieChart, Signal, Users2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { generateInsights } from "@/lib/ai";
+import { api } from "@/lib/api";
 import NaturalLanguageQuery from "@/components/NaturalLanguageQuery";
+import { useState, useEffect } from "react";
 import {
   Bar,
   BarChart,
@@ -139,6 +140,28 @@ function getAgeBand(ageValue: string) {
 }
 
 export default function AnalyticsDashboard() {
+  const [insights, setInsights] = useState<string[]>(["Loading AI insights..."]);
+
+  useEffect(() => {
+    const fetchInsights = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setInsights(["Authentication required for AI insights"]);
+        return;
+      }
+
+      try {
+        const response = await api.getAIInsights(token);
+        setInsights(response.insights);
+      } catch (error) {
+        console.error('Failed to fetch AI insights:', error);
+        setInsights(["Failed to load AI insights. Using fallback data."]);
+      }
+    };
+
+    fetchInsights();
+  }, []);
+
   const records = [...fallbackRecords, ...readPendingRecords()].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
   );
@@ -171,8 +194,6 @@ export default function AnalyticsDashboard() {
     name: band,
     value: records.filter((record) => getAgeBand(record.age) === band).length,
   }));
-
-  const insights = generateInsights(records);
 
   const recentTrend = [...records]
     .slice(0, 8)

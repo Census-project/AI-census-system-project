@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useMutation } from "@tanstack/react-query";
+import { ShieldCheck } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import LoginForm from "@/components/LoginForm";
 import AppHeader from "@/components/AppHeader";
 import StatsCards from "@/components/StatsCards";
@@ -8,6 +10,9 @@ import CensusForm from "@/components/CensusForm";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import MappingDashboard from "@/components/MappingDashboard";
 import AIAssistant from "@/components/AIAssistant";
+import AdminDashboard from "@/components/AdminDashboard";
+import SupervisorDashboard from "@/components/SupervisorDashboard";
+import EnumeratorDashboard from "@/components/EnumeratorDashboard";
 import { api, type RegisterData } from "@/lib/api";
 
 interface User {
@@ -64,6 +69,7 @@ export default function Index() {
     onSuccess: (data) => {
       localStorage.setItem('token', data.token);
       setUser({ username: data.user.username, role: data.user.role });
+      setActiveTab(data.user.role === "admin" ? "overview" : data.user.role === "supervisor" ? "supervisor" : "collect");
       syncPendingSubmissions();
     },
     onError: (error: Error) => {
@@ -120,6 +126,7 @@ export default function Index() {
           <div>
             <h2 className="text-3xl font-bold tracking-tight text-foreground">Welcome back, {user.username}!</h2>
             <p className="mt-1 text-muted-foreground">
+              {activeTab === "overview" && "Access the admin console to manage users, review quality, and inspect system health."}
               {activeTab === "collect" && "Capture household records quickly with a smoother field workflow."}
               {activeTab === "analytics" && "Track trends, demographic balance, and collection momentum in real time."}
               {activeTab === "mapping" && "Review spatial coverage and coordinate-tagged records across the field."}
@@ -131,8 +138,24 @@ export default function Index() {
           </div>
         </motion.div>
 
-        <StatsCards />
+        <StatsCards role={user.role} />
 
+        {activeTab === "overview" && user.role === "admin" && <AdminDashboard />}
+        {activeTab === "overview" && user.role !== "admin" && (
+          <div className="flex items-center justify-center py-12">
+            <Card className="glass-card-hover border-border/80 bg-card/90 max-w-md">
+              <CardContent className="text-center p-8">
+                <ShieldCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">Access Restricted</h3>
+                <p className="text-sm text-muted-foreground">
+                  Administrator privileges required to access this section.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        {activeTab === "supervisor" && user.role === "supervisor" && <SupervisorDashboard />}
+        {activeTab === "collect" && user.role !== "admin" && user.role !== "supervisor" && <EnumeratorDashboard />}
         {activeTab === "collect" && <CensusForm isOnline={isOnline} />}
         {activeTab === "analytics" && <AnalyticsDashboard />}
         {activeTab === "mapping" && <MappingDashboard />}
