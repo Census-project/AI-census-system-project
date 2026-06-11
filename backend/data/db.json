@@ -74,5 +74,25 @@
       "assigned_surveys": []
     }
   ],
-  "censusRecords": []
+  "censusRecords": [
+    {
+      "id": 1,
+      "enumerator_id": 7,
+      "household_id": "HH-1780563295734-452",
+      "first_name": "wisdom",
+      "last_name": "bello",
+      "age": "17",
+      "gender": "F",
+      "phone": "+2348127373960",
+      "gps_latitude": null,
+      "gps_longitude": null,
+      "location_address": "junior qtrs, maikunkele",
+      "submission_type": "online",
+      "submission_timestamp": "2026-06-04T09:06:56.559Z",
+      "sync_status": "synced",
+      "is_duplicate": false,
+      "anomaly_flags": null,
+      "created_at": "2026-06-04T09:06:56.559Z"
+    }
+  ]
 }

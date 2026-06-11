@@ -11,10 +11,14 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-router.get('/users', verifyToken, requireAdmin, async (req, res) => {
+router.get('/users', verifyToken, async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+    return res.status(403).json({ error: 'Admin or supervisor access required' });
+  }
+
   try {
     const result = await pool.query(
-      `SELECT u.id, u.username, u.email, u.role, u.status, u.created_at,
+      `SELECT u.id, u.username, u.email, u.role, u.status, u.passport_photo, u.created_at,
               COALESCE(json_agg(json_build_object('id', sa.id, 'survey_name', sa.survey_name, 'assigned_at', sa.assigned_at))
                        FILTER (WHERE sa.id IS NOT NULL), '[]') AS assigned_surveys
        FROM users u
@@ -23,7 +27,17 @@ router.get('/users', verifyToken, requireAdmin, async (req, res) => {
        ORDER BY u.created_at DESC`
     );
 
-    res.json({ users: result.rows });
+    // Convert binary passport photos to base64
+    let users = result.rows.map(user => ({
+      ...user,
+      passport_photo: user.passport_photo ? user.passport_photo.toString('base64') : null
+    }));
+
+    if (req.user.role === 'supervisor') {
+      users = users.filter((user) => user.role === 'enumerator');
+    }
+
+    res.json({ users });
   } catch (err) {
     console.error('Get users error:', err);
     res.status(500).json({ error: 'Failed to retrieve users' });
@@ -51,6 +65,36 @@ router.post('/assign-survey', verifyToken, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Assign survey error:', err);
     res.status(500).json({ error: 'Failed to assign survey' });
+  }
+});
+
+router.post('/upload-passport-photo', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { userId, photoData } = req.body;
+    
+    if (!userId || !photoData) {
+      return res.status(400).json({ error: 'User ID and photo data are required' });
+    }
+
+    // Verify user exists
+    const userResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update user's passport photo
+    const updateResult = await pool.query(
+      'UPDATE users SET passport_photo = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, passport_photo',
+      [photoData, userId]
+    );
+
+    res.json({ 
+      message: 'Passport photo uploaded successfully', 
+      user: updateResult.rows[0] 
+    });
+  } catch (err) {
+    console.error('Photo upload error:', err);
+    res.status(500).json({ error: 'Failed to upload passport photo' });
   }
 });
 

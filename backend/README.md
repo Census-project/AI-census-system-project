@@ -72,6 +72,8 @@ Runs the fallback JSON storage server for development without PostgreSQL.
 - `POST /api/census/submit` - Submit census record (requires auth)
 - `POST /api/census/batch` - Submit multiple records for offline sync (requires auth)
 - `GET /api/census/records` - Get census records with pagination and filtering (requires auth)
+- `GET /api/census/activity` - Get the latest realtime activity feed and summary metrics (requires auth)
+- `GET /api/census/summary` - Get overall census collection summary for dashboard analytics (requires auth)
 
 ### AI / Analytics
 - `POST /api/ai/query` - Process a natural language analytics query (requires auth)
@@ -294,6 +296,40 @@ Response: 200
 {
   "data": [ { "id": 1, "household_id": "HH-001", ... }, ... ],
   "pagination": { "page": 1, "limit": 50, "total": 100, "pages": 2 }
+}
+```
+
+**Realtime Activity Feed**
+```
+GET /api/census/activity?limit=50
+Authorization: Bearer <token>
+
+Response: 200
+{
+  "data": [ { "id": 12, "household_id": "HH-001", ... }, ... ],
+  "summary": {
+    "totalRecords": 50,
+    "onlineRecords": 38,
+    "offlineRecords": 12,
+    "coverageZones": 8,
+    "lastUpdated": "2026-06-04T12:34:56.789Z"
+  }
+}
+```
+
+**Collection Summary**
+```
+GET /api/census/summary
+Authorization: Bearer <token>
+
+Response: 200
+{
+  "summary": {
+    "totalRecords": 420,
+    "onlineRecords": 348,
+    "offlineRecords": 72,
+    "lastUpdated": "2026-06-04T12:34:56.789Z"
+  }
 }
 ```
 

@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
+import { nigeriaStates } from "@/lib/nigeria";
 import { ClipboardList, CheckCircle2, Clock3, MapPin, Sparkles } from "lucide-react";
 
 interface CensusRecord {
@@ -28,7 +29,8 @@ export default function EnumeratorDashboard() {
   const [records, setRecords] = useState<CensusRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [coverageScope, setCoverageScope] = useState<'state' | 'national'>('state');
-  const [stateFilter, setStateFilter] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedLga, setSelectedLga] = useState('');
 
   useEffect(() => {
     const fetchEnumeratorRecords = async () => {
@@ -40,9 +42,9 @@ export default function EnumeratorDashboard() {
         const data = (result.data || []) as CensusRecord[];
         setRecords(data);
 
-        const states = Array.from(new Set(data.map((record) => resolveStateFromAddress(record.location_address)))).filter((state) => state !== 'Unknown');
-        if (states.length > 0) {
-          setStateFilter(states[0]);
+        if (nigeriaStates.length > 0) {
+          setSelectedState('');
+          setSelectedLga('');
         }
       } catch (error) {
         console.error('Failed to load enumerator records:', error);
@@ -54,10 +56,20 @@ export default function EnumeratorDashboard() {
     fetchEnumeratorRecords();
   }, []);
 
-  const allStates = Array.from(new Set(records.map((record) => resolveStateFromAddress(record.location_address)))).filter((state) => state !== 'Unknown');
-  const filteredRecords = coverageScope === 'national' || !stateFilter
+  const allStates = nigeriaStates.map((state) => state.name);
+  const availableLgas = nigeriaStates.find((state) => state.name === selectedState)?.lgas ?? [];
+  const filteredRecords = coverageScope === 'national' || !selectedState
     ? records
-    : records.filter((record) => resolveStateFromAddress(record.location_address) === stateFilter);
+    : records.filter((record) => {
+        const recordState = resolveStateFromAddress(record.location_address);
+        if (recordState !== selectedState) {
+          return false;
+        }
+        if (!selectedLga) {
+          return true;
+        }
+        return record.location_address?.toLowerCase().includes(selectedLga.toLowerCase()) ?? false;
+      });
 
   const totalHouseholds = new Set(filteredRecords.map((record) => record.household_id)).size;
   const onlineCount = filteredRecords.filter((record) => record.submission_type === 'online').length;
@@ -126,13 +138,29 @@ export default function EnumeratorDashboard() {
               </label>
               {coverageScope === 'state' && (
                 <select
-                  value={stateFilter}
-                  onChange={(event) => setStateFilter(event.target.value)}
+                  value={selectedState}
+                  onChange={(event) => {
+                    setSelectedState(event.target.value);
+                    setSelectedLga('');
+                  }}
                   className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   <option value="">Select a state</option>
                   {allStates.map((state) => (
                     <option key={state} value={state}>{state}</option>
+                  ))}
+                </select>
+              )}
+
+              {coverageScope === 'state' && selectedState && (
+                <select
+                  value={selectedLga}
+                  onChange={(event) => setSelectedLga(event.target.value)}
+                  className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">All local government areas</option>
+                  {availableLgas.map((lga) => (
+                    <option key={lga} value={lga}>{lga}</option>
                   ))}
                 </select>
               )}

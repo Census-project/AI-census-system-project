@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,79 +6,79 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    --background: 220 25% 97%;
+    --foreground: 224 71% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 224 71% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 224 71% 12%;
 
-    --primary: 239 84% 67%;
+    --primary: 250 84% 66%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 214 32% 91%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 214 32% 92%;
+    --secondary-foreground: 224 71% 12%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 216 41% 95%;
+    --muted-foreground: 220 16% 47%;
 
-    --accent: 239 84% 67%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 187 84% 52%;
+    --accent-foreground: 224 71% 12%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 160 84% 39%;
+    --success: 162 76% 40%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
+    --warning: 36 92% 52%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 239 84% 67%;
+    --border: 220 24% 88%;
+    --input: 220 24% 88%;
+    --ring: 250 84% 66%;
 
-    --radius: 0.75rem;
+    --radius: 0.9rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 99%;
+    --sidebar-foreground: 224 71% 12%;
+    --sidebar-primary: 250 84% 66%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 32% 94%;
+    --sidebar-accent-foreground: 224 71% 12%;
+    --sidebar-border: 220 24% 88%;
+    --sidebar-ring: 250 84% 66%;
 
-    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
-    --shadow-ambient: 0 0 0 1px rgb(0 0 0 / 0.03), 0 2px 4px rgb(0 0 0 / 0.05);
+    --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.06);
+    --shadow-md: 0 12px 30px -18px rgb(15 23 42 / 0.22);
+    --shadow-lg: 0 20px 50px -25px rgb(15 23 42 / 0.3);
+    --shadow-ambient: 0 0 0 1px rgb(15 23 42 / 0.03), 0 14px 35px -20px rgb(15 23 42 / 0.18);
   }
 
   .dark {
-    --background: 222 47% 5%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 239 84% 67%;
+    --background: 224 29% 7%;
+    --foreground: 210 25% 95%;
+    --card: 224 27% 12%;
+    --card-foreground: 210 25% 95%;
+    --popover: 224 27% 12%;
+    --popover-foreground: 210 25% 95%;
+    --primary: 258 86% 70%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --secondary: 223 21% 17%;
+    --secondary-foreground: 210 25% 95%;
+    --muted: 223 20% 16%;
+    --muted-foreground: 216 18% 72%;
+    --accent: 188 90% 56%;
+    --accent-foreground: 224 29% 7%;
     --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 239 84% 67%;
+    --destructive-foreground: 210 25% 95%;
+    --border: 223 20% 23%;
+    --input: 223 20% 23%;
+    --ring: 258 86% 70%;
   }
 }
 
@@ -90,21 +90,58 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: var(--font-sans);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    background-image: radial-gradient(circle at top left, hsl(var(--primary) / 0.12), transparent 30%), radial-gradient(circle at top right, hsl(var(--accent) / 0.12), transparent 28%);
+    background-attachment: fixed;
+  }
+
+  #root {
+    min-height: 100vh;
   }
 }
 
 @layer utilities {
   .glass-card {
-    @apply bg-card border border-border rounded-xl;
+    @apply bg-card/90 border border-border/80 rounded-2xl;
     box-shadow: var(--shadow-ambient);
+    backdrop-filter: blur(18px);
   }
 
   .glass-card-hover {
-    @apply glass-card transition-all duration-200;
+    @apply glass-card transition-all duration-300;
   }
 
   .glass-card-hover:hover {
-    box-shadow: var(--shadow-md);
-    border-color: hsl(var(--primary) / 0.2);
+    box-shadow: var(--shadow-lg);
+    border-color: hsl(var(--primary) / 0.24);
+  }
+
+  .cinematic-panel {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, hsl(var(--card) / 0.96), hsl(var(--card) / 0.84));
+    border: 1px solid hsl(var(--border) / 0.7);
+    box-shadow: 0 20px 45px -28px hsl(var(--primary) / 0.28), inset 0 1px 0 hsl(0 0% 100% / 0.14);
+    transform-style: preserve-3d;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease, border-color 0.35s ease;
+  }
+
+  .cinematic-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 0%, hsl(var(--primary) / 0.08) 40%, transparent 80%);
+    transform: translateX(-100%);
+    transition: transform 0.55s ease;
+    pointer-events: none;
+  }
+
+  .cinematic-panel:hover {
+    transform: translateY(-6px) scale(1.01) rotateX(3deg) rotateY(-2deg);
+    box-shadow: 0 28px 65px -30px hsl(var(--primary) / 0.32), inset 0 1px 0 hsl(0 0% 100% / 0.16);
+  }
+
+  .cinematic-panel:hover::before {
+    transform: translateX(100%);
   }
 }

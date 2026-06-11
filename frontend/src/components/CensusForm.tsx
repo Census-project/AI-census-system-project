@@ -21,9 +21,24 @@ interface HouseholdMember {
   disability_type: string;
 }
 
+interface CustomField {
+  label: string;
+  value: string;
+}
+
 interface CensusFormProps {
   isOnline: boolean;
 }
+
+export const serializeCustomFields = (fields: CustomField[]) => {
+  return fields.reduce((acc, field) => {
+    const label = field.label.trim();
+    if (label) {
+      acc[label] = field.value.trim();
+    }
+    return acc;
+  }, {} as Record<string, string>);
+};
 
 const emptyMember = (): HouseholdMember => ({
   first_name: "",
@@ -46,6 +61,7 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
     gps_longitude: null as number | null,
   });
   const [members, setMembers] = useState<HouseholdMember[]>([emptyMember()]);
+  const [customFields, setCustomFields] = useState<CustomField[]>([{ label: "", value: "" }]);
   const [aiHints, setAiHints] = useState<string[]>([]);
   const [genderSuggestion, setGenderSuggestion] = useState<string | null>(null);
   const [anomalyScore, setAnomalyScore] = useState(0);
@@ -80,6 +96,7 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
     health_status: members[0].health_status,
     has_disability: members[0].has_disability,
     disability_type: members[0].disability_type,
+    custom_fields: serializeCustomFields(customFields),
     submission_type: "online",
     timestamp: new Date().toISOString(),
   };
@@ -156,6 +173,7 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
   const resetForm = () => {
     setHousehold({ household_id: '', location_address: '', gps_latitude: null, gps_longitude: null });
     setMembers([emptyMember()]);
+    setCustomFields([{ label: '', value: '' }]);
     setCurrentLocation(null);
     setShowSuggestions(false);
   };
@@ -195,6 +213,7 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
       health_status: member.health_status,
       has_disability: member.has_disability,
       disability_type: member.disability_type,
+      custom_fields: serializeCustomFields(customFields),
       submission_type: isOnline ? 'online' : 'offline',
       timestamp: new Date().toISOString(),
     })) as CensusData[];
@@ -484,6 +503,45 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
                 </motion.span>
               )}
             </div>
+          </div>
+        </Section>
+
+        <Section title="Optional Custom Data Element">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Add a location-specific data element such as ward code, water source, school distance, or community identifier.
+            </p>
+            {customFields.map((field, index) => (
+              <div key={index} className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4 sm:grid-cols-[1.2fr_1fr_auto]">
+                <Field label="Field name">
+                  <Input
+                    value={field.label}
+                    onChange={(e) => setCustomFields((prev) => prev.map((item, itemIndex) => itemIndex === index ? { ...item, label: e.target.value } : item))}
+                    placeholder="e.g. Ward code"
+                  />
+                </Field>
+                <Field label="Value">
+                  <Input
+                    value={field.value}
+                    onChange={(e) => setCustomFields((prev) => prev.map((item, itemIndex) => itemIndex === index ? { ...item, value: e.target.value } : item))}
+                    placeholder="Enter the value"
+                  />
+                </Field>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setCustomFields((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
+                    className="w-full sm:w-auto"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
+            <Button type="button" variant="outline" onClick={() => setCustomFields((prev) => [...prev, { label: '', value: '' }])}>
+              Add another custom field
+            </Button>
           </div>
         </Section>
 

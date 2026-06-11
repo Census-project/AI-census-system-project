@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ShieldCheck, Users2, BarChart3, ClipboardList, Sparkles, Download } from "lucide-react";
+import { ShieldCheck, Users2, BarChart3, ClipboardList, Sparkles, Download, Upload } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ interface User {
   email: string;
   role: string;
   created_at: string;
+  passport_photo?: string;
 }
 
 interface AdminUser extends User {

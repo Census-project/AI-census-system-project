@@ -125,8 +125,25 @@ function mapPoint(record: CensusRecord, index: number) {
   };
 }
 
+function resolveStateFromAddress(address?: string | null) {
+  if (!address) return "Unknown";
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : address;
+}
+
+interface ActivitySummary {
+  totalRecords: number;
+  onlineRecords: number;
+  offlineRecords: number;
+  coverageZones: number;
+  lastUpdated: string;
+}
+
 export default function MappingDashboard() {
   const [recommendation, setRecommendation] = useState("Loading AI mapping recommendation...");
+  const [liveRecords, setLiveRecords] = useState<CensusRecord[]>([]);
+  const [activitySummary, setActivitySummary] = useState<ActivitySummary | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleTimeString());
 
   useEffect(() => {
     const fetchRecommendation = async () => {
@@ -145,17 +162,39 @@ export default function MappingDashboard() {
       }
     };
 
+    const fetchActivityFeed = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const response = await api.getActivityFeed(token, { limit: 50 });
+        const records = response.data || [];
+        setLiveRecords(Array.isArray(records) ? records : []);
+        setActivitySummary(response.summary || null);
+        setLastUpdated(new Date().toLocaleTimeString());
+      } catch (error) {
+        console.error('Failed to fetch live activity feed:', error);
+      }
+    };
+
     fetchRecommendation();
+    fetchActivityFeed();
+    const interval = window.setInterval(fetchActivityFeed, 10000);
+    return () => window.clearInterval(interval);
   }, []);
 
-  const mappedRecords = [...fallbackRecords, ...readPendingRecords()]
+  const allRecords = liveRecords.length > 0 ? liveRecords : fallbackRecords;
+  const mappedRecords = [...allRecords, ...readPendingRecords()]
     .filter((record) => record.gps_latitude !== null && record.gps_longitude !== null)
     .slice(0, 12)
     .map(mapPoint);
-
+  const coverageZones = activitySummary?.coverageZones ?? new Set(allRecords.map((record) => resolveStateFromAddress(record.location_address))).size;
   const onlineNodes = mappedRecords.filter((record) => record.submission_type === "online").length;
   const offlineNodes = mappedRecords.length - onlineNodes;
-  const northernmost = [...mappedRecords].sort((a, b) => (b.gps_latitude ?? 0) - (a.gps_latitude ?? 0))[0];
+
+  const recentActivity = [...allRecords]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 6);
 
   return (
     <section className="space-y-6" aria-labelledby="mapping-heading">
@@ -178,7 +217,7 @@ export default function MappingDashboard() {
           </div>
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-background/80 px-3 py-1 text-xs text-muted-foreground">
             <Satellite className="h-3.5 w-3.5 text-primary" />
-            {mappedRecords.length} active coordinate points
+            {mappedRecords.length} active coordinate points • updated {lastUpdated}
           </div>
         </div>
       </motion.div>
@@ -215,8 +254,9 @@ export default function MappingDashboard() {
               <Compass className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Northernmost point</p>
-              <p className="mt-2 text-lg font-semibold tracking-tight text-foreground">{northernmost?.location_address ?? "Not available"}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Coverage zones</p>
+              <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">{coverageZones}</p>
+              <p className="text-sm text-muted-foreground">distinct target regions</p>
             </div>
           </CardContent>
         </Card>
@@ -317,11 +357,11 @@ export default function MappingDashboard() {
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.14, duration: 0.35 }}>
           <Card className="glass-card h-full">
             <CardHeader>
-              <CardTitle className="text-xl">Recent mapped households</CardTitle>
-              <CardDescription>Fast access to latest coordinate-tagged records.</CardDescription>
+              <CardTitle className="text-xl">Recent activity stream</CardTitle>
+              <CardDescription>Latest submissions and sync events from the field.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {mappedRecords.slice(0, 6).map((record, index) => (
+              {recentActivity.map((record, index) => (
                 <motion.div
                   key={`${record.household_id}-${record.timestamp}`}
                   initial={{ opacity: 0, x: 12 }}
@@ -338,9 +378,10 @@ export default function MappingDashboard() {
                       {record.submission_type}
                     </span>
                   </div>
-                  <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-muted-foreground">
+                  <div className="mt-3 grid grid-cols-3 gap-3 text-xs text-muted-foreground">
                     <span>Lat: {record.gps_latitude?.toFixed(4)}</span>
                     <span>Lng: {record.gps_longitude?.toFixed(4)}</span>
+                    <span>{new Date(record.timestamp).toLocaleString()}</span>
                   </div>
                 </motion.div>
               ))}

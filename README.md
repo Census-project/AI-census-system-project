@@ -1,9 +1,17 @@
 # AI-Driven Digital Census Project
 
-This repository contains the frontend and backend for the AI-driven digital census PWA system.\n
+This repository contains the frontend and backend for an AI-assisted digital census system with realtime mapping, analytics, and export-ready reporting.
+
 ## Structure
-- `frontend/` - progressive web app and web portal.
-- `backend/` - API server, database models, AI/ML services.
+- `frontend/` - progressive web app and operational dashboards.
+- `backend/` - API server, auth services, census persistence, and analytics.
+
+## Key Features
+- Realtime activity feed and coordinate-tagged mapping for field operations.
+- Role-based access control for enumerators, supervisors, and administrators.
+- AI-driven mapping recommendations, validation hints, and anomaly detection.
+- Export-ready JSON data for reporting, partner integration, and commercial use.
+- Offline sync, batch submissions, and local JSON development mode.
 
 ## Backend Setup
 1. Change to the backend folder:
@@ -29,3 +37,10 @@ npm run dev:local
 ```
 
 Refer to `backend/README.md` for full backend setup and API details.
+
+## Commercial and Analytics Capabilities
+- Live activity stream for all census submissions handled by the web app.
+- Downloadable dataset export for backup, reporting, and commercialization.
+- Supervisor and admin dashboards with coverage, sync and quality metrics.
+- AI-assisted map strategy suggestions to optimize geographic deployment.
+- Survey assignment and role-based workflows for scaling field operations.

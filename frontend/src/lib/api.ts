@@ -10,6 +10,7 @@ export interface RegisterData {
   email: string;
   password: string;
   role: string;
+  passportPhoto?: string;
 }
 
 export interface CensusData {
@@ -29,6 +30,7 @@ export interface CensusData {
   health_status?: string;
   has_disability?: boolean;
   disability_type?: string;
+  custom_fields?: Record<string, string>;
 }
 
 export const api = {
@@ -98,6 +100,29 @@ export const api = {
       },
     });
     if (!res.ok) throw new Error('Failed to load census records');
+    return res.json();
+  },
+
+  getActivityFeed: async (token: string, params: { limit?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (params.limit) query.set('limit', String(params.limit));
+
+    const res = await fetch(`${API_BASE}/api/census/activity?${query.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to load activity feed');
+    return res.json();
+  },
+
+  getCensusSummary: async (token: string) => {
+    const res = await fetch(`${API_BASE}/api/census/summary`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to load census summary');
     return res.json();
   },
 
@@ -204,6 +229,22 @@ export const api = {
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: 'Failed to assign survey' }));
       throw new Error(errorData.error || 'Failed to assign survey');
+    }
+    return res.json();
+  },
+
+  uploadPassportPhoto: async (userId: number, photoData: string, token: string) => {
+    const res = await fetch(`${API_BASE}/api/admin/upload-passport-photo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ userId, photoData }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Failed to upload passport photo' }));
+      throw new Error(errorData.error || 'Failed to upload passport photo');
     }
     return res.json();
   },

@@ -204,6 +204,7 @@ app.post('/api/census/submit', verifyToken, (req, res) => {
       gps_latitude,
       gps_longitude,
       location_address,
+      custom_fields,
       submission_type = 'online',
     } = req.body;
 
@@ -231,6 +232,7 @@ app.post('/api/census/submit', verifyToken, (req, res) => {
       gps_latitude: gps_latitude || null,
       gps_longitude: gps_longitude || null,
       location_address: location_address || null,
+      custom_fields: custom_fields || {},
       submission_type,
       submission_timestamp: new Date(),
       sync_status: 'synced',
@@ -274,6 +276,7 @@ app.post('/api/census/batch', verifyToken, (req, res) => {
         gps_latitude,
         gps_longitude,
         location_address,
+        custom_fields,
         submission_type = 'offline',
       } = record;
 
@@ -309,6 +312,7 @@ app.post('/api/census/batch', verifyToken, (req, res) => {
         gps_latitude: gps_latitude || null,
         gps_longitude: gps_longitude || null,
         location_address: location_address || null,
+        custom_fields: custom_fields || {},
         submission_type,
         submission_timestamp: new Date(),
         sync_status: 'synced',
@@ -339,7 +343,7 @@ app.post('/api/census/batch', verifyToken, (req, res) => {
 // Retrieve census records with pagination
 app.get('/api/census/records', verifyToken, (req, res) => {
   try {
-    const { page = 1, limit = 50, household_id, status } = req.query;
+    const { page = 1, limit = 50, household_id, status, enumerator_id } = req.query;
     const offset = (page - 1) * limit;
 
     // Filter records
@@ -347,6 +351,8 @@ app.get('/api/census/records', verifyToken, (req, res) => {
 
     if (req.user.role === 'enumerator') {
       filtered = filtered.filter(r => r.enumerator_id === req.user.userId);
+    } else if (enumerator_id) {
+      filtered = filtered.filter(r => r.enumerator_id === Number(enumerator_id));
     }
 
     if (household_id) {
@@ -355,11 +361,6 @@ app.get('/api/census/records', verifyToken, (req, res) => {
 
     if (status) {
       filtered = filtered.filter(r => r.sync_status === status);
-    }
-
-    if (req.user.role === 'supervisor' && req.query.enumerator_id) {
-      const enumeratorId = Number(req.query.enumerator_id);
-      filtered = filtered.filter(r => r.enumerator_id === enumeratorId);
     }
 
     // Paginate
@@ -621,8 +622,8 @@ app.get('/api/ai/mapping', verifyToken, (req, res) => {
 
 // Get all users (admin only)
 app.get('/api/admin/users', verifyToken, (req, res) => {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
+  if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+    return res.status(403).json({ error: 'Admin or supervisor access required' });
   }
 
   try {
@@ -647,7 +648,7 @@ app.get('/api/admin/users', verifyToken, (req, res) => {
       return stats;
     }, {});
 
-    const userList = Array.from(users.values()).map(user => {
+    let userList = Array.from(users.values()).map(user => {
       const metrics = enumerationStats[user.id] || { totalRecords: 0, onlineRecords: 0, offlineRecords: 0, lastSubmission: null };
       return {
         id: user.id,
@@ -662,6 +663,10 @@ app.get('/api/admin/users', verifyToken, (req, res) => {
         lastSubmissionAt: metrics.lastSubmission,
       };
     });
+
+    if (req.user.role === 'supervisor') {
+      userList = userList.filter((user) => user.role === 'enumerator');
+    }
 
     res.json({ users: userList });
   } catch (err) {

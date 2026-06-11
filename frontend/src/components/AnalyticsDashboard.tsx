@@ -236,8 +236,9 @@ export default function AnalyticsDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="glass-card relative overflow-hidden p-6"
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        whileHover={{ y: -4, scale: 1.01, rotateX: 2, rotateY: -2 }}
+        className="cinematic-panel relative overflow-hidden rounded-[24px] p-6"
       >
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -286,8 +287,9 @@ export default function AnalyticsDashboard() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05, duration: 0.3 }}
+            whileHover={{ y: -5, scale: 1.01, rotateX: 3, rotateY: -3 }}
           >
-            <Card className="glass-card-hover border-border/80 bg-card/90">
+            <Card className="cinematic-panel border-border/80 bg-card/90">
               <CardContent className="flex items-start justify-between p-6">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">{card.title}</p>

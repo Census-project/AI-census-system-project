@@ -104,9 +104,96 @@ export default function Index() {
     return <LoginForm onLogin={handleLogin} onRegister={handleRegister} />;
   }
 
+  const renderDashboardContent = () => {
+    if (activeTab === "overview" && user.role === "admin") {
+      return <AdminDashboard />;
+    }
+
+    if (activeTab === "overview") {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <Card className="glass-card-hover border-border/80 bg-card/90 max-w-md">
+            <CardContent className="text-center p-8">
+              <ShieldCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">Workspace Overview</h3>
+              <p className="text-sm text-muted-foreground">
+                Your role-based dashboard summary will appear here with the latest task highlights.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    if (activeTab === "supervisor" && user.role === "supervisor") {
+      return <SupervisorDashboard />;
+    }
+
+    if (activeTab === "collect") {
+      if (user.role !== "admin" && user.role !== "supervisor") {
+        return <EnumeratorDashboard />;
+      }
+      return <CensusForm isOnline={isOnline} />;
+    }
+
+    if (activeTab === "analytics") {
+      return <AnalyticsDashboard />;
+    }
+
+    if (activeTab === "mapping") {
+      return <MappingDashboard />;
+    }
+
+    if (activeTab === "assistant") {
+      return <AIAssistant />;
+    }
+
+    if (activeTab === "reports") {
+      return <AnalyticsDashboard />;
+    }
+
+    if (activeTab === "activity") {
+      if (user.role === "admin") {
+        return <AdminDashboard />;
+      }
+      if (user.role === "supervisor") {
+        return <SupervisorDashboard />;
+      }
+      return <EnumeratorDashboard />;
+    }
+
+    if (activeTab === "users") {
+      return <AdminDashboard />;
+    }
+
+    if (activeTab === "sync") {
+      return (
+        <div className="rounded-3xl border border-border/80 bg-card/90 p-8 shadow-sm">
+          <h3 className="text-xl font-semibold text-foreground">Offline syncing</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Pending submissions and offline queue status are available here when the device reconnects.
+          </p>
+        </div>
+      );
+    }
+
+    if (activeTab === "settings") {
+      return (
+        <div className="rounded-3xl border border-border/80 bg-card/90 p-8 shadow-sm">
+          <h3 className="text-xl font-semibold text-foreground">Workspace settings</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Customize role preferences, notification thresholds, and field collection defaults here.
+          </p>
+        </div>
+      );
+    }
+
+    return <CensusForm isOnline={isOnline} />;
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_52%)]" />
+    <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <div className="absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.18),transparent_58%)]" />
       <AppHeader
         username={user.username}
         role={user.role}
@@ -116,12 +203,13 @@ export default function Index() {
         onLogout={handleLogout}
       />
 
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-8 pb-32 sm:px-6 lg:pl-[20rem] lg:pr-6">
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          whileHover={{ y: -4, scale: 1.01, rotateX: 2, rotateY: -2 }}
+          className="cinematic-panel flex flex-col gap-3 rounded-[28px] border border-border/60 bg-card/80 p-6 shadow-[0_20px_45px_-28px_hsl(var(--primary)/0.35)] backdrop-blur-xl lg:flex-row lg:items-end lg:justify-between"
         >
           <div>
             <h2 className="text-3xl font-bold tracking-tight text-foreground">Welcome back, {user.username}!</h2>
@@ -140,26 +228,7 @@ export default function Index() {
 
         <StatsCards role={user.role} />
 
-        {activeTab === "overview" && user.role === "admin" && <AdminDashboard />}
-        {activeTab === "overview" && user.role !== "admin" && (
-          <div className="flex items-center justify-center py-12">
-            <Card className="glass-card-hover border-border/80 bg-card/90 max-w-md">
-              <CardContent className="text-center p-8">
-                <ShieldCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">Access Restricted</h3>
-                <p className="text-sm text-muted-foreground">
-                  Administrator privileges required to access this section.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-        {activeTab === "supervisor" && user.role === "supervisor" && <SupervisorDashboard />}
-        {activeTab === "collect" && user.role !== "admin" && user.role !== "supervisor" && <EnumeratorDashboard />}
-        {activeTab === "collect" && <CensusForm isOnline={isOnline} />}
-        {activeTab === "analytics" && <AnalyticsDashboard />}
-        {activeTab === "mapping" && <MappingDashboard />}
-        {activeTab === "assistant" && <AIAssistant />}
+        {renderDashboardContent()}
       </main>
     </div>
   );

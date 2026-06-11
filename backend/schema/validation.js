@@ -6,6 +6,7 @@ const registerSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
   role: Joi.string().valid('enumerator', 'supervisor', 'admin').default('enumerator'),
+  passport_photo: Joi.string().optional(),
 });
 
 // Census record submission validation
@@ -19,6 +20,7 @@ const censusRecordSchema = Joi.object({
   gps_latitude: Joi.number().min(-90).max(90),
   gps_longitude: Joi.number().min(-180).max(180),
   location_address: Joi.string(),
+  custom_fields: Joi.object().pattern(Joi.string(), Joi.string().allow('')).optional(),
   submission_type: Joi.string().valid('online', 'offline').default('online'),
 });
 

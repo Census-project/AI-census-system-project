@@ -5,6 +5,12 @@ const { censusRecordSchema, batchSubmissionSchema } = require('../schema/validat
 
 const router = express.Router();
 
+function resolveStateFromAddress(address) {
+  if (!address) return 'Unknown';
+  const parts = address.split(',').map((part) => part.trim()).filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : address;
+}
+
 // Submit a single census record
 router.post('/submit', verifyToken, async (req, res) => {
   try {
@@ -24,6 +30,7 @@ router.post('/submit', verifyToken, async (req, res) => {
       gps_latitude,
       gps_longitude,
       location_address,
+      custom_fields,
       submission_type,
     } = value;
 
@@ -31,8 +38,8 @@ router.post('/submit', verifyToken, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO census_records 
        (enumerator_id, household_id, first_name, last_name, age, gender, phone, 
-        gps_latitude, gps_longitude, location_address, submission_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        gps_latitude, gps_longitude, location_address, custom_fields, submission_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         req.user.userId,
@@ -45,6 +52,7 @@ router.post('/submit', verifyToken, async (req, res) => {
         gps_latitude,
         gps_longitude,
         location_address,
+        JSON.stringify(custom_fields || {}),
         submission_type,
       ]
     );
@@ -93,6 +101,7 @@ router.post('/batch', verifyToken, async (req, res) => {
         gps_latitude,
         gps_longitude,
         location_address,
+        custom_fields,
         submission_type,
       } = record;
 
@@ -100,8 +109,8 @@ router.post('/batch', verifyToken, async (req, res) => {
         const result = await client.query(
           `INSERT INTO census_records 
            (enumerator_id, household_id, first_name, last_name, age, gender, phone, 
-            gps_latitude, gps_longitude, location_address, submission_type)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            gps_latitude, gps_longitude, location_address, custom_fields, submission_type)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
            RETURNING id, household_id, sync_status`,
           [
             req.user.userId,
@@ -114,6 +123,7 @@ router.post('/batch', verifyToken, async (req, res) => {
             gps_latitude,
             gps_longitude,
             location_address,
+            JSON.stringify(custom_fields || {}),
             submission_type,
           ]
         );
@@ -150,11 +160,19 @@ router.post('/batch', verifyToken, async (req, res) => {
 // Retrieve census records (with pagination and filtering)
 router.get('/records', verifyToken, async (req, res) => {
   try {
-    const { page = 1, limit = 50, household_id, status } = req.query;
+    const { page = 1, limit = 50, household_id, status, enumerator_id } = req.query;
     const offset = (page - 1) * limit;
 
     let query = 'SELECT * FROM census_records WHERE 1=1';
     const params = [];
+
+    if (req.user.role === 'enumerator') {
+      query += ` AND enumerator_id = $${params.length + 1}`;
+      params.push(req.user.userId);
+    } else if (enumerator_id) {
+      query += ` AND enumerator_id = $${params.length + 1}`;
+      params.push(Number(enumerator_id));
+    }
 
     if (household_id) {
       query += ` AND household_id ILIKE $${params.length + 1}`;
@@ -166,15 +184,21 @@ router.get('/records', verifyToken, async (req, res) => {
       params.push(status);
     }
 
-    // Add pagination
     query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
 
     const result = await pool.query(query, params);
 
-    // Get total count
     let countQuery = 'SELECT COUNT(*) FROM census_records WHERE 1=1';
     const countParams = [];
+
+    if (req.user.role === 'enumerator') {
+      countQuery += ` AND enumerator_id = $${countParams.length + 1}`;
+      countParams.push(req.user.userId);
+    } else if (enumerator_id) {
+      countQuery += ` AND enumerator_id = $${countParams.length + 1}`;
+      countParams.push(Number(enumerator_id));
+    }
 
     if (household_id) {
       countQuery += ` AND household_id ILIKE $${countParams.length + 1}`;
@@ -201,6 +225,58 @@ router.get('/records', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('Retrieve records error:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/activity', verifyToken, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 50;
+    const result = await pool.query(
+      'SELECT * FROM census_records ORDER BY created_at DESC LIMIT $1',
+      [limit]
+    );
+
+    const records = result.rows;
+    const onlineRecords = records.filter((record) => record.submission_type === 'online').length;
+    const offlineRecords = records.length - onlineRecords;
+    const coverageZones = new Set(records.map((record) => resolveStateFromAddress(record.location_address))).size;
+
+    res.json({
+      data: records,
+      summary: {
+        totalRecords: records.length,
+        onlineRecords,
+        offlineRecords,
+        coverageZones,
+        lastUpdated: new Date().toISOString(),
+      },
+    });
+  } catch (err) {
+    console.error('Activity feed error:', err);
+    res.status(500).json({ error: 'Failed to retrieve activity feed' });
+  }
+});
+
+router.get('/summary', verifyToken, async (req, res) => {
+  try {
+    const [totalResult, onlineResult, offlineResult, syncedResult] = await Promise.all([
+      pool.query('SELECT COUNT(*) AS total_records FROM census_records'),
+      pool.query("SELECT COUNT(*) AS online_records FROM census_records WHERE submission_type = 'online'"),
+      pool.query("SELECT COUNT(*) AS offline_records FROM census_records WHERE submission_type != 'online'"),
+      pool.query('SELECT MAX(created_at) AS last_updated FROM census_records'),
+    ]);
+
+    res.json({
+      summary: {
+        totalRecords: Number(totalResult.rows[0].total_records || 0),
+        onlineRecords: Number(onlineResult.rows[0].online_records || 0),
+        offlineRecords: Number(offlineResult.rows[0].offline_records || 0),
+        lastUpdated: syncedResult.rows[0].last_updated,
+      },
+    });
+  } catch (err) {
+    console.error('Summary error:', err);
+    res.status(500).json({ error: 'Failed to retrieve summary' });
   }
 });
 

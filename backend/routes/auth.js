@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/database');
-const { generateToken } = require('../middleware/auth');
+const { generateToken, verifyToken } = require('../middleware/auth');
 const { registerSchema } = require('../schema/validation');
 
 const router = express.Router();
@@ -15,7 +15,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: error.details[0].message });
     }
 
-    const { username, email, password, role } = value;
+    const { username, email, password, role, passport_photo } = value;
 
     // Check if user already exists
     const existingUser = await pool.query(
@@ -29,11 +29,14 @@ router.post('/register', async (req, res) => {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+    const photoBuffer = passport_photo
+      ? Buffer.from(passport_photo.split(',')[1] || passport_photo, 'base64')
+      : null;
 
     // Insert new user
     const result = await pool.query(
-      'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role',
-      [username, email, hashedPassword, role]
+      'INSERT INTO users (username, email, password_hash, role, passport_photo) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, role',
+      [username, email, hashedPassword, role, photoBuffer]
     );
 
     const user = result.rows[0];
@@ -90,6 +93,68 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Upload passport photo
+router.post('/upload-photo/:userId', verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { photo } = req.body;
+
+    // Validate that user can only upload their own photo or they are admin
+    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    if (!photo) {
+      return res.status(400).json({ error: 'Photo data is required' });
+    }
+
+    // Convert base64 to buffer
+    const photoBuffer = Buffer.from(photo.split(',')[1] || photo, 'base64');
+
+    // Update user's passport photo
+    const result = await pool.query(
+      'UPDATE users SET passport_photo = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, username, email',
+      [photoBuffer, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'Photo uploaded successfully', user: result.rows[0] });
+  } catch (err) {
+    console.error('Photo upload error:', err);
+    res.status(500).json({ error: 'Failed to upload photo' });
+  }
+});
+
+// Get user profile with photo
+router.get('/profile/:userId', verifyToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const result = await pool.query(
+      'SELECT id, username, email, role, status, passport_photo, created_at FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = result.rows[0];
+    // Convert binary data to base64 if it exists
+    if (user.passport_photo) {
+      user.passport_photo = user.passport_photo.toString('base64');
+    }
+
+    res.json(user);
+  } catch (err) {
+    console.error('Profile fetch error:', err);
+    res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
 

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageCircle, Send, Bot, User } from "lucide-react";
+import { api } from "@/lib/api";
 
 interface Message {
   id: string;
@@ -77,8 +78,8 @@ export default function AIAssistant() {
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI processing
-    setTimeout(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
       const response = findBestResponse(input);
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -88,7 +89,30 @@ export default function AIAssistant() {
       };
       setMessages((prev) => [...prev, assistantMessage]);
       setIsTyping(false);
-    }, 1000);
+      return;
+    }
+
+    try {
+      const data = await api.processNaturalQuery(input, token);
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: data.answer || data.result?.title || data.message || 'I am not sure how to answer that right now.',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      const response = findBestResponse(input);
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: response,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

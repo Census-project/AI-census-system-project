@@ -1,10 +1,34 @@
 const express = require('express');
 const pool = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
+const { OpenAI } = require('openai');
 
 const router = express.Router();
 
 const normalizeQuery = (query = '') => query.toLowerCase();
+
+const openaiClient = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+
+const buildAIPrompt = (query, records) => {
+  const geotagged = records.filter((r) => r.gps_latitude !== null && r.gps_longitude !== null).length;
+  const online = records.filter((r) => r.submission_type === 'online').length;
+  const offline = records.length - online;
+  const avgAge = records.filter((r) => typeof r.age === 'number').map((r) => r.age);
+  const avgAgeValue = avgAge.length ? Math.round(avgAge.reduce((sum, value) => sum + value, 0) / avgAge.length) : 'N/A';
+
+  return `You are a helpful assistant for a Nigerian census data collection dashboard. Use the dataset summary below to answer the user's question clearly and concisely. Do not invent unsupported facts.
+
+Dataset summary:
+- Total records: ${records.length}
+- Geotagged records: ${geotagged}
+- Online submissions: ${online}
+- Offline submissions: ${offline}
+- Average age: ${avgAgeValue}
+
+User question: ${query}
+
+Answer:`;
+};
 
 router.post('/query', verifyToken, async (req, res) => {
   try {
@@ -78,6 +102,20 @@ router.post('/query', verifyToken, async (req, res) => {
         .slice(-5)
         .map((record) => ({ date: record.submission_timestamp?.toISOString?.() || String(record.created_at), count: 1 }));
       result = { type: 'trend', title: 'Recent Submissions', value: `${trend.length} recent records`, data: trend };
+    }
+
+    if (openaiClient) {
+      const prompt = buildAIPrompt(query, records);
+      const response = await openaiClient.responses.create({
+        model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+        input: prompt,
+      });
+
+      const answer = response.output?.[0]?.content?.find((item) => item.type === 'output_text')?.text ||
+        response.output?.[0]?.content?.[0]?.text ||
+        'I could not generate an answer at this time.';
+
+      return res.json({ success: true, answer: answer.trim() });
     }
 
     if (result) {

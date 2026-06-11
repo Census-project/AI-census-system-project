@@ -7,7 +7,7 @@ import { BarChart3, Target, Bot, Smartphone, Mail, Lock, User, Building, Eye, Ey
 
 interface LoginFormProps {
   onLogin: (email: string, password: string) => Promise<void>;
-  onRegister: (data: { username: string; email: string; password: string; role: string }) => Promise<void>;
+  onRegister: (data: { username: string; email: string; password: string; role: string; passportPhoto?: string }) => Promise<void>;
 }
 
 const features = [
@@ -27,7 +27,9 @@ export default function LoginForm({ onLogin, onRegister }: LoginFormProps) {
     email: "",
     password: "",
     role: "enumerator",
+    passportPhoto: undefined as string | undefined,
   });
+  const [passportPreview, setPassportPreview] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,10 +47,23 @@ export default function LoginForm({ onLogin, onRegister }: LoginFormProps) {
     try {
       await onRegister(formData);
       setIsRegistering(false);
-      setFormData({ username: "", email: "", password: "", role: "enumerator" });
+      setFormData({ username: "", email: "", password: "", role: "enumerator", passportPhoto: undefined });
+      setPassportPreview("");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePassportPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setFormData((prev) => ({ ...prev, passportPhoto: result }));
+      setPassportPreview(result);
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -144,6 +159,34 @@ export default function LoginForm({ onLogin, onRegister }: LoginFormProps) {
                   placeholder="Create a strong password"
                   required
                 />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-2 text-sm">
+                  <User className="w-3.5 h-3.5 text-muted-foreground" /> Passport Photo
+                </Label>
+                <input
+                  id="passport-photo"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePassportPhotoChange}
+                />
+                <label htmlFor="passport-photo">
+                  <Button variant="outline" type="button" className="w-full justify-center">
+                    Upload passport photo
+                  </Button>
+                </label>
+                {passportPreview && (
+                  <div className="mt-2 rounded-lg border border-border p-2">
+                    <img
+                      src={passportPreview}
+                      alt="Passport preview"
+                      className="h-24 w-24 rounded object-cover"
+                    />
+                    <div className="mt-2 text-sm text-muted-foreground">Passport photo selected.</div>
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground">Optional but recommended for enumerator identity verification.</p>
               </div>
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-2 text-sm">

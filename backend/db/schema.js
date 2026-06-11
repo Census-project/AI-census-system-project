@@ -12,6 +12,7 @@ const initializeDatabase = async () => {
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(50) DEFAULT 'enumerator',
         status VARCHAR(50) DEFAULT 'active',
+        passport_photo TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -31,6 +32,7 @@ const initializeDatabase = async () => {
         gps_latitude DECIMAL(10, 8),
         gps_longitude DECIMAL(11, 8),
         location_address VARCHAR(500),
+        custom_fields TEXT,
         submission_type VARCHAR(50) DEFAULT 'online',
         submission_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         sync_status VARCHAR(50) DEFAULT 'synced',

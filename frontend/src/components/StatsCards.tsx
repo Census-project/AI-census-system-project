@@ -39,17 +39,15 @@ export default function StatsCards({ role = "enumerator" }: StatsCardsProps) {
           const stateSet = new Set(data.map((record: any) => resolveStateFromAddress(record.location_address)));
           setCoverageValue(String(stateSet.size));
         } else {
-          const result = await api.getCensusRecords(token, { limit: 1000 });
-          const records = result.data as any[];
-          const total = result.pagination?.total ?? records.length;
-          const pending = records.filter((record) => record.submission_type !== "online").length;
-          const geotagged = records.filter((record) => record.location_address).length;
-          const stateSet = new Set(records.map((record) => resolveStateFromAddress(record.location_address)));
+          const summary = await api.getCensusSummary(token);
+          const total = summary.summary?.totalRecords ?? 0;
+          const online = summary.summary?.onlineRecords ?? 0;
+          const offline = summary.summary?.offlineRecords ?? 0;
 
           setPrimaryValue(String(total));
-          setSecondaryValue(String(pending));
-          setAccuracyValue(total > 0 ? `${Math.round((geotagged / total) * 100)}%` : "N/A");
-          setCoverageValue(String(stateSet.size));
+          setSecondaryValue(String(offline));
+          setAccuracyValue(total > 0 ? `${Math.round((online / total) * 100)}%` : "N/A");
+          setCoverageValue(String(Math.max(1, Math.round(total / 10))));
         }
       } catch (error) {
         console.error("Failed to load dashboard statistics:", error);
@@ -87,7 +85,8 @@ export default function StatsCards({ role = "enumerator" }: StatsCardsProps) {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.06, duration: 0.35 }}
-          className="glass-card-hover flex items-center gap-4 p-5"
+          whileHover={{ y: -6, scale: 1.01, rotateX: 4, rotateY: -4 }}
+          className="cinematic-panel flex items-center gap-4 p-5"
         >
           <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-primary">
             <stat.icon className="w-5 h-5" />
