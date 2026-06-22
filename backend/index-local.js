@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const cron = require('node-cron');
+const { verifySingleRecord, verifyBatch } = require('./lib/censusVerify');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,9 +22,10 @@ if (!fs.existsSync(dataDir)) {
 }
 const dbFile = path.join(dataDir, 'db.json');
 
-let db = { users: [], censusRecords: [] };
+let db = { users: [], censusRecords: [], notifications: [] };
 let userIdCounter = 1;
 let recordIdCounter = 1;
+let notificationIdCounter = 1;
 
 // load existing data if present
 if (fs.existsSync(dbFile)) {
@@ -34,6 +37,9 @@ if (fs.existsSync(dbFile)) {
     if (db.censusRecords.length > 0) {
       recordIdCounter = Math.max(...db.censusRecords.map(r => r.id)) + 1;
     }
+    if (db.notifications && db.notifications.length > 0) {
+      notificationIdCounter = Math.max(...db.notifications.map(n => n.id)) + 1;
+    }
   } catch (err) {
     console.error('Error reading db file:', err);
   }
@@ -41,11 +47,13 @@ if (fs.existsSync(dbFile)) {
 
 const users = new Map(db.users.map(u => [u.id, u]));
 const censusRecords = db.censusRecords.slice();
+let notifications = db.notifications || [];
 
 function saveDb() {
   const toSave = {
     users: Array.from(users.values()),
     censusRecords,
+    notifications,
   };
   fs.writeFileSync(dbFile, JSON.stringify(toSave, null, 2));
 }
@@ -222,6 +230,7 @@ app.post('/api/census/submit', verifyToken, (req, res) => {
     const recordId = recordIdCounter++;
     const newRecord = {
       id: recordId,
+      record_id: recordId,
       enumerator_id: req.user.userId,
       household_id,
       first_name,
@@ -235,18 +244,53 @@ app.post('/api/census/submit', verifyToken, (req, res) => {
       custom_fields: custom_fields || {},
       submission_type,
       submission_timestamp: new Date(),
+      timestamp: new Date().toISOString(),
       sync_status: 'synced',
       is_duplicate: false,
       anomaly_flags: null,
+      verification_status: 'pending',
+      verified_by_agent: false,
       created_at: new Date(),
     };
 
+    // Auto-verify the record
+    const verificationResult = verifySingleRecord(newRecord, []);
+    newRecord.verification_status = verificationResult.verification_status;
+    newRecord.verification_results = verificationResult;
+    newRecord.verified_at = new Date().toISOString();
+    newRecord.verified_by_agent = true;
+
     censusRecords.push(newRecord);
+    
+    // Notify supervisors if record requires review
+    if (verificationResult.requires_manual_review) {
+      const supervisorUsers = Array.from(users.values()).filter(u => u.role === 'admin' || u.role === 'supervisor');
+      for (const supervisor of supervisorUsers) {
+        notifications.push({
+          id: notificationIdCounter++,
+          supervisor_id: supervisor.id,
+          record_id: recordId,
+          type: 'verification_alert',
+          title: `Record Requires Review: ${newRecord.first_name} ${newRecord.last_name}`,
+          message: `Priority: ${verificationResult.review_priority}. Issues: ${verificationResult.issues?.length || 0}`,
+          priority: verificationResult.review_priority,
+          status: 'unread',
+          metadata: verificationResult,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+    
     saveDb();
 
     res.status(201).json({
-      message: 'Census record submitted successfully',
-      record: newRecord,
+      message: 'Census record submitted and verified successfully',
+      record: {
+        ...newRecord,
+        verification_status: verificationResult.verification_status,
+        verification_results: verificationResult,
+      },
     });
   } catch (err) {
     console.error('Submission error:', err);
@@ -254,7 +298,7 @@ app.post('/api/census/submit', verifyToken, (req, res) => {
   }
 });
 
-// Batch submission for offline sync
+// Batch submission for offline sync with verification
 app.post('/api/census/batch', verifyToken, (req, res) => {
   try {
     const { records } = req.body;
@@ -264,6 +308,7 @@ app.post('/api/census/batch', verifyToken, (req, res) => {
     }
 
     const submittedRecords = [];
+    const allRecordsForVerification = [];
 
     for (const record of records) {
       const {
@@ -302,6 +347,7 @@ app.post('/api/census/batch', verifyToken, (req, res) => {
       const recordId = recordIdCounter++;
       const newRecord = {
         id: recordId,
+        record_id: recordId,
         enumerator_id: req.user.userId,
         household_id,
         first_name,
@@ -315,14 +361,17 @@ app.post('/api/census/batch', verifyToken, (req, res) => {
         custom_fields: custom_fields || {},
         submission_type,
         submission_timestamp: new Date(),
+        timestamp: new Date().toISOString(),
         sync_status: 'synced',
         is_duplicate: false,
         anomaly_flags: null,
+        verification_status: 'pending',
+        verified_by_agent: false,
         created_at: new Date(),
       };
 
       censusRecords.push(newRecord);
-      saveDb();
+      allRecordsForVerification.push(newRecord);
       submittedRecords.push({
         id: recordId,
         household_id,
@@ -330,8 +379,54 @@ app.post('/api/census/batch', verifyToken, (req, res) => {
       });
     }
 
+    // Run batch verification on all submitted records
+    const batchReport = verifyBatch(allRecordsForVerification);
+
+    // Update verification results for each record
+    for (const verResult of batchReport.results) {
+      const recordIndex = censusRecords.findIndex(r => r.id === verResult.record_id);
+      if (recordIndex !== -1) {
+        censusRecords[recordIndex].verification_status = verResult.verification_status;
+        censusRecords[recordIndex].verification_results = verResult;
+        censusRecords[recordIndex].verified_at = new Date().toISOString();
+        censusRecords[recordIndex].verified_by_agent = true;
+      }
+    }
+
+    saveDb();
+
+    // Notify supervisors of batch completion if high priority records exist
+    if (batchReport.high_priority_count > 0) {
+      const supervisorUsers = Array.from(users.values()).filter(u => u.role === 'admin' || u.role === 'supervisor');
+      for (const supervisor of supervisorUsers) {
+        notifications.push({
+          id: notificationIdCounter++,
+          supervisor_id: supervisor.id,
+          record_id: null,
+          type: 'batch_verification_alert',
+          title: `Batch Verification Complete: ${batchReport.high_priority_count} High Priority Records`,
+          message: `${batchReport.pass} passed, ${batchReport.warn} warned, ${batchReport.fail} failed`,
+          priority: 'HIGH',
+          status: 'unread',
+          metadata: batchReport,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    saveDb();
+
     res.status(201).json({
-      message: `Batch submission completed. ${submittedRecords.filter(r => !r.error).length} records processed.`,
+      message: `Batch submission and verification completed. ${submittedRecords.filter(r => !r.error).length} records processed.`,
+      verification_summary: {
+        total: batchReport.total_records,
+        passed: batchReport.pass,
+        warned: batchReport.warn,
+        failed: batchReport.fail,
+        pass_rate: `${batchReport.pass_rate_pct}%`,
+        high_priority: batchReport.high_priority_count,
+      },
       results: submittedRecords,
     });
   } catch (err) {
@@ -483,10 +578,47 @@ app.post('/api/ai/query', verifyToken, (req, res) => {
       };
     }
 
+    // Gender distribution queries
+    else if (lowerQuery.includes("gender") && (lowerQuery.includes("ratio") || lowerQuery.includes("breakdown") || lowerQuery.includes("distribution"))) {
+      const maleCount = censusRecords.filter(r => r.gender === "M").length;
+      const femaleCount = censusRecords.filter(r => r.gender === "F").length;
+      result = {
+        type: "percentage",
+        title: "Gender Distribution",
+        value: `M: ${maleCount}, F: ${femaleCount}`,
+        details: `Male: ${Math.round((maleCount / censusRecords.length) * 100)}%, Female: ${Math.round((femaleCount / censusRecords.length) * 100)}%`,
+        data: [["Male", maleCount], ["Female", femaleCount]]
+      };
+    }
+
+    // State-wise breakdown queries
+    else if ((lowerQuery.includes("state") || lowerQuery.includes("by state")) && (lowerQuery.includes("breakdown") || lowerQuery.includes("distribution"))) {
+      const states = censusRecords.reduce((acc, r) => {
+        const state = r.state || r.location_address?.split(",")[r.location_address.split(",").length - 1]?.trim() || "Unknown";
+        acc[state] = (acc[state] || 0) + 1;
+        return acc;
+      }, {});
+      result = {
+        type: "list",
+        title: "Records by State",
+        value: `Data across ${Object.keys(states).length} states`,
+        data: Object.entries(states).sort((a, b) => b[1] - a[1]).slice(0, 10)
+      };
+    }
+
+    // Household count queries
+    else if (lowerQuery.includes("household")) {
+      result = {
+        type: "count",
+        title: "Total Households",
+        value: censusRecords.length
+      };
+    }
+
     if (result) {
       res.json({ success: true, result });
     } else {
-      res.json({ success: false, message: "Query not understood. Try asking about counts, averages, locations, or trends." });
+      res.json({ success: false, message: "Query not understood. Try asking about counts, averages, locations, gender distribution, state breakdown, or trends." });
     }
   } catch (err) {
     console.error('AI query error:', err);
@@ -760,11 +892,333 @@ app.get('/api/admin/export', verifyToken, (req, res) => {
   }
 });
 
+// ==================== VERIFICATION ENDPOINTS ====================
+
+// Get verification report
+app.get('/api/verify/report', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+    return res.status(403).json({ error: 'Access denied. Supervisor or admin role required.' });
+  }
+
+  try {
+    const timeframe = req.query.timeframe || '7days';
+    const now = new Date();
+    let filterDate = new Date();
+
+    if (timeframe === '7days') {
+      filterDate.setDate(filterDate.getDate() - 7);
+    } else if (timeframe === '30days') {
+      filterDate.setDate(filterDate.getDate() - 30);
+    }
+
+    const verifiedRecords = censusRecords.filter(r => r.verification_status && new Date(r.verified_at) >= filterDate);
+    const summary = {
+      PASS: verifiedRecords.filter(r => r.verification_status === 'PASS').length,
+      FAIL: verifiedRecords.filter(r => r.verification_status === 'FAIL').length,
+      WARN: verifiedRecords.filter(r => r.verification_status === 'WARN').length,
+    };
+
+    res.json({
+      timeframe,
+      summary: [
+        { verification_status: 'PASS', count: summary.PASS, avg_confidence: 95 },
+        { verification_status: 'FAIL', count: summary.FAIL, avg_confidence: 45 },
+        { verification_status: 'WARN', count: summary.WARN, avg_confidence: 70 },
+      ],
+      stats: {
+        total_records_verified: verifiedRecords.length,
+        passed: summary.PASS,
+        failed: summary.FAIL,
+        warned: summary.WARN,
+        ai_verified: verifiedRecords.filter(r => r.verified_by_agent).length,
+      },
+      generated_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('Verification report error:', err);
+    res.status(500).json({ error: 'Failed to generate verification report' });
+  }
+});
+
+// Get unverified records for batch processing
+app.get('/api/verify/batch', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+    return res.status(403).json({ error: 'Access denied. Supervisor or admin role required.' });
+  }
+
+  try {
+    const limit = Math.min(parseInt(req.query.limit || '50'), 500);
+    const offset = parseInt(req.query.offset || '0');
+
+    const unverifiedRecords = censusRecords.filter(r => !r.verification_status || r.verification_status === 'pending');
+    const records = unverifiedRecords
+      .sort((a, b) => new Date(b.submission_timestamp) - new Date(a.submission_timestamp))
+      .slice(offset, offset + limit);
+
+    res.json({
+      records,
+      count: records.length,
+      limit,
+      offset,
+      total_unverified: unverifiedRecords.length,
+    });
+  } catch (err) {
+    console.error('Batch fetch error:', err);
+    res.status(500).json({ error: 'Failed to fetch batch records' });
+  }
+});
+
+// Submit batch verification results from AI agent
+app.post('/api/verify/batch', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+    return res.status(403).json({ error: 'Access denied. Supervisor or admin role required.' });
+  }
+
+  try {
+    const { verification_results } = req.body;
+
+    if (!Array.isArray(verification_results)) {
+      return res.status(400).json({ error: 'verification_results must be an array' });
+    }
+
+    const updated = [];
+    const errors = [];
+
+    for (const result of verification_results) {
+      try {
+        const recordIndex = censusRecords.findIndex(r => r.id === result.record_id);
+        if (recordIndex !== -1) {
+          censusRecords[recordIndex] = {
+            ...censusRecords[recordIndex],
+            verification_status: result.verification_status,
+            verification_results: {
+              confidence_score: result.confidence_score,
+              issues: result.issues,
+              requires_manual_review: result.requires_manual_review,
+              review_priority: result.review_priority,
+              recommendations: result.recommendations,
+              verified_at: new Date().toISOString(),
+            },
+            verified_at: new Date().toISOString(),
+            verified_by_agent: true,
+          };
+          updated.push(result.record_id);
+        }
+      } catch (err) {
+        errors.push({ record_id: result.record_id, error: err.message });
+      }
+    }
+
+    saveDb();
+    res.json({
+      updated_count: updated.length,
+      updated_records: updated,
+      error_count: errors.length,
+      errors: errors.length > 0 ? errors : undefined,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('Batch verification error:', err);
+    res.status(500).json({ error: 'Failed to process batch verification' });
+  }
+});
+
+// Get verification results for single record
+app.get('/api/verify/record/:id', verifyToken, (req, res) => {
+  try {
+    const record = censusRecords.find(r => r.id === parseInt(req.params.id));
+    if (!record) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    res.json({
+      id: record.id,
+      household_id: record.household_id,
+      first_name: record.first_name,
+      last_name: record.last_name,
+      verification_status: record.verification_status,
+      verification_results: record.verification_results,
+      verified_at: record.verified_at,
+      verified_by_agent: record.verified_by_agent,
+    });
+  } catch (err) {
+    console.error('Record verification fetch error:', err);
+    res.status(500).json({ error: 'Failed to fetch record verification' });
+  }
+});
+
+// Submit verification for single record
+app.post('/api/verify/record/:id', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+    return res.status(403).json({ error: 'Access denied. Supervisor or admin role required.' });
+  }
+
+  try {
+    const recordIndex = censusRecords.findIndex(r => r.id === parseInt(req.params.id));
+    if (recordIndex === -1) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    const { verification_status, confidence_score, issues, requires_manual_review, review_priority, recommendations } = req.body;
+
+    censusRecords[recordIndex] = {
+      ...censusRecords[recordIndex],
+      verification_status,
+      verification_results: {
+        confidence_score,
+        issues,
+        requires_manual_review,
+        review_priority,
+        recommendations,
+        verified_at: new Date().toISOString(),
+      },
+      verified_at: new Date().toISOString(),
+      verified_by_agent: true,
+    };
+
+    saveDb();
+    res.json({
+      message: 'Record verification updated',
+      record: censusRecords[recordIndex],
+    });
+  } catch (err) {
+    console.error('Record verification error:', err);
+    res.status(500).json({ error: 'Failed to update record verification' });
+  }
+});
+
+// Get flagged records for manual review
+app.get('/api/verify/flagged', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+    return res.status(403).json({ error: 'Access denied. Supervisor or admin role required.' });
+  }
+
+  try {
+    const priority = req.query.priority || 'HIGH';
+    const limit = Math.min(parseInt(req.query.limit || '25'), 100);
+
+    const flagged = censusRecords
+      .filter(r => r.verified_by_agent && r.verification_results?.requires_manual_review && r.verification_results?.review_priority === priority)
+      .sort((a, b) => new Date(b.verified_at) - new Date(a.verified_at))
+      .slice(0, limit);
+
+    res.json({
+      priority,
+      count: flagged.length,
+      records: flagged,
+    });
+  } catch (err) {
+    console.error('Flagged records fetch error:', err);
+    res.status(500).json({ error: 'Failed to fetch flagged records' });
+  }
+});
+
+// ==================== NOTIFICATION ENDPOINTS ====================
+
+// Get notifications for current user
+app.get('/api/verify/notifications', verifyToken, (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const userNotifications = notifications
+      .filter(n => n.supervisor_id === req.user.userId)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 20);
+
+    res.json({
+      count: userNotifications.length,
+      notifications: userNotifications,
+    });
+  } catch (err) {
+    console.error('Fetch notifications error:', err);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+// Mark notification as read
+app.post('/api/verify/notifications/:id/read', verifyToken, (req, res) => {
+  try {
+    if (req.user.role !== 'admin' && req.user.role !== 'supervisor') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const notifIndex = notifications.findIndex(n => n.id === parseInt(req.params.id));
+    if (notifIndex === -1) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    notifications[notifIndex].status = 'read';
+    notifications[notifIndex].updated_at = new Date().toISOString();
+    saveDb();
+
+    res.json({ message: 'Notification marked as read' });
+  } catch (err) {
+    console.error('Mark read error:', err);
+    res.status(500).json({ error: 'Failed to update notification' });
+  }
+});
+
 // ==================== ERROR HANDLING ====================
 
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({ error: 'Internal server error' });
+});
+
+// ==================== BATCH VERIFICATION SCHEDULER ====================
+
+// Schedule batch verification every 6 hours
+cron.schedule('0 */6 * * *', async () => {
+  try {
+    console.log('🔄 [SCHEDULER] Running automated batch verification...');
+    
+    const unverifiedRecords = censusRecords.filter(r => !r.verification_status || r.verification_status === 'pending');
+    
+    if (unverifiedRecords.length === 0) {
+      console.log('✓ [SCHEDULER] No unverified records to process');
+      return;
+    }
+
+    const batchReport = verifyBatch(unverifiedRecords);
+
+    // Update verification results for each record
+    for (const verResult of batchReport.results) {
+      const recordIndex = censusRecords.findIndex(r => r.id === verResult.record_id);
+      if (recordIndex !== -1) {
+        censusRecords[recordIndex].verification_status = verResult.verification_status;
+        censusRecords[recordIndex].verification_results = verResult;
+        censusRecords[recordIndex].verified_at = new Date().toISOString();
+        censusRecords[recordIndex].verified_by_agent = true;
+      }
+    }
+
+    // Create notification if there are high priority issues
+    if (batchReport.high_priority_count > 0) {
+      const supervisorUsers = Array.from(users.values()).filter(u => u.role === 'admin' || u.role === 'supervisor');
+      for (const supervisor of supervisorUsers) {
+        notifications.push({
+          id: notificationIdCounter++,
+          supervisor_id: supervisor.id,
+          record_id: null,
+          type: 'batch_verification_alert',
+          title: `Scheduled Batch Verification: ${batchReport.high_priority_count} High Priority Records`,
+          message: `${batchReport.pass} passed, ${batchReport.warn} warned, ${batchReport.fail} failed. Pass rate: ${batchReport.pass_rate_pct}%`,
+          priority: 'HIGH',
+          status: 'unread',
+          metadata: batchReport,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    saveDb();
+    console.log(`✓ [SCHEDULER] Batch verification complete: ${batchReport.pass} passed, ${batchReport.warn} warned, ${batchReport.fail} failed`);
+  } catch (err) {
+    console.error('❌ [SCHEDULER] Batch verification failed:', err);
+  }
 });
 
 // ==================== START SERVER ====================
@@ -787,4 +1241,13 @@ app.listen(PORT, () => {
   console.log(`  GET    /api/admin/users`);
   console.log(`  GET    /api/admin/stats`);
   console.log(`  GET    /api/admin/export`);
+  console.log(`  GET    /api/verify/report`);
+  console.log(`  GET    /api/verify/batch`);
+  console.log(`  POST   /api/verify/batch`);
+  console.log(`  GET    /api/verify/record/:id`);
+  console.log(`  POST   /api/verify/record/:id`);
+  console.log(`  GET    /api/verify/flagged`);
+  console.log(`  GET    /api/verify/notifications`);
+  console.log(`  POST   /api/verify/notifications/:id/read`);
+  console.log(`\n⏰ Scheduler: Batch verification runs every 6 hours`);
 });

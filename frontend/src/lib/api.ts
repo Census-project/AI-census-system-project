@@ -248,4 +248,76 @@ export const api = {
     }
     return res.json();
   },
+
+  // Verification Endpoints
+  getFlaggedRecords: async (token: string, params: { priority?: string; limit?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (params.priority) query.set('priority', params.priority);
+    if (params.limit) query.set('limit', String(params.limit || 50));
+
+    const res = await fetch(`${API_BASE}/api/verify/flagged?${query.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to fetch flagged records');
+    return res.json();
+  },
+
+  getVerificationReport: async (token: string, params: { period?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.period) query.set('period', params.period);
+
+    const res = await fetch(`${API_BASE}/api/verify/report?${query.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to fetch verification report');
+    return res.json();
+  },
+
+  getNotifications: async (token: string) => {
+    const res = await fetch(`${API_BASE}/api/verify/notifications`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to fetch notifications');
+    return res.json();
+  },
+
+  markNotificationRead: async (notificationId: string, token: string) => {
+    const res = await fetch(`${API_BASE}/api/verify/notifications/${notificationId}/read`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to mark notification as read');
+    return res.json();
+  },
+
+  getVerificationRecord: async (recordId: string, token: string) => {
+    const res = await fetch(`${API_BASE}/api/verify/record/${recordId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to fetch verification record');
+    return res.json();
+  },
+
+  submitManualReview: async (recordId: string, data: { approved: boolean; notes: string }, token: string) => {
+    const res = await fetch(`${API_BASE}/api/verify/manual-review/${recordId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to submit manual review');
+    return res.json();
+  },
 };

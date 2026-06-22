@@ -72,6 +72,26 @@
       "status": "active",
       "created_at": "2026-05-09T13:38:18.744Z",
       "assigned_surveys": []
+    },
+    {
+      "id": 9,
+      "username": "TestUser",
+      "email": "test@census.com",
+      "password_hash": "$2a$10$yj0ax/DJoRx/5R5ZUzxvPOlsnspqeGFjdAw6C5V7rk6igvP6fxjyi",
+      "role": "enumerator",
+      "status": "active",
+      "created_at": "2026-06-19T10:20:47.523Z",
+      "assigned_surveys": []
+    },
+    {
+      "id": 10,
+      "username": "SupervisorUser",
+      "email": "supervisor@census.com",
+      "password_hash": "$2a$10$q6jMvCEuCNWZJnO7yKaR7uuhhjw20t3xHqv06AvUuciBXrT9FNtzW",
+      "role": "supervisor",
+      "status": "active",
+      "created_at": "2026-06-19T10:30:55.969Z",
+      "assigned_surveys": []
     }
   ],
   "censusRecords": [
@@ -92,7 +112,641 @@
       "sync_status": "synced",
       "is_duplicate": false,
       "anomaly_flags": null,
-      "created_at": "2026-06-04T09:06:56.559Z"
+      "created_at": "2026-06-04T09:06:56.559Z",
+      "verification_status": "FAIL",
+      "verification_results": {
+        "record_id": 1,
+        "household_id": "HH-1780563295734-452",
+        "respondent": "wisdom bello",
+        "verification_status": "FAIL",
+        "confidence_score": 80,
+        "issues": [
+          {
+            "field": "household_id",
+            "severity": "CRITICAL",
+            "message": "Invalid format: \"HH-1780563295734-452\"",
+            "suggested_fix": "Use format HH-2026-001"
+          },
+          {
+            "field": "location_address",
+            "severity": "WARNING",
+            "message": "Address \"junior qtrs, maikunkele\" does not reference a known Nigerian State or LGA",
+            "suggested_fix": "Include a valid Nigerian State or LGA name in the address"
+          }
+        ],
+        "issue_summary": {
+          "critical": 1,
+          "warning": 1,
+          "info": 0
+        },
+        "recommendations": [
+          "Address all CRITICAL issues before final approval"
+        ],
+        "requires_manual_review": true,
+        "review_priority": "HIGH",
+        "verified_at": "2026-06-19T11:00:00.811Z",
+        "submission_type": "online"
+      },
+      "verified_at": "2026-06-19T11:00:00.840Z",
+      "verified_by_agent": true
+    },
+    {
+      "id": 2,
+      "record_id": 2,
+      "enumerator_id": 9,
+      "household_id": "HH-001",
+      "first_name": "John",
+      "last_name": "Doe",
+      "age": 35,
+      "gender": "M",
+      "phone": "+2348012345678",
+      "gps_latitude": null,
+      "gps_longitude": null,
+      "location_address": "123 Main Street, Lagos, Lagos",
+      "custom_fields": {},
+      "submission_type": "online",
+      "submission_timestamp": "2026-06-19T10:26:50.355Z",
+      "timestamp": "2026-06-19T10:26:50.355Z",
+      "sync_status": "synced",
+      "is_duplicate": false,
+      "anomaly_flags": null,
+      "verification_status": "FAIL",
+      "verified_by_agent": true,
+      "created_at": "2026-06-19T10:26:50.357Z",
+      "verification_results": {
+        "record_id": 2,
+        "household_id": "HH-001",
+        "respondent": "John Doe",
+        "verification_status": "FAIL",
+        "confidence_score": 85,
+        "issues": [
+          {
+            "field": "household_id",
+            "severity": "CRITICAL",
+            "message": "Invalid format: \"HH-001\"",
+            "suggested_fix": "Use format HH-2026-001"
+          }
+        ],
+        "issue_summary": {
+          "critical": 1,
+          "warning": 0,
+          "info": 0
+        },
+        "recommendations": [
+          "Address all CRITICAL issues before final approval"
+        ],
+        "requires_manual_review": true,
+        "review_priority": "HIGH",
+        "verified_at": "2026-06-19T10:26:50.396Z",
+        "submission_type": "online"
+      },
+      "verified_at": "2026-06-19T10:26:50.396Z"
+    },
+    {
+      "id": 3,
+      "record_id": 3,
+      "enumerator_id": 1,
+      "household_id": "HH-1781866597530-171",
+      "first_name": "sddd",
+      "last_name": "ddd",
+      "age": "19",
+      "gender": "F",
+      "phone": "097655438",
+      "gps_latitude": null,
+      "gps_longitude": null,
+      "location_address": "junior lowcust",
+      "custom_fields": {},
+      "submission_type": "online",
+      "submission_timestamp": "2026-06-19T10:58:17.367Z",
+      "timestamp": "2026-06-19T10:58:17.367Z",
+      "sync_status": "synced",
+      "is_duplicate": false,
+      "anomaly_flags": null,
+      "verification_status": "FAIL",
+      "verified_by_agent": true,
+      "created_at": "2026-06-19T10:58:17.367Z",
+      "verification_results": {
+        "record_id": 3,
+        "household_id": "HH-1781866597530-171",
+        "respondent": "sddd ddd",
+        "verification_status": "FAIL",
+        "confidence_score": 80,
+        "issues": [
+          {
+            "field": "household_id",
+            "severity": "CRITICAL",
+            "message": "Invalid format: \"HH-1781866597530-171\"",
+            "suggested_fix": "Use format HH-2026-001"
+          },
+          {
+            "field": "location_address",
+            "severity": "WARNING",
+            "message": "Address \"junior lowcust\" does not reference a known Nigerian State or LGA",
+            "suggested_fix": "Include a valid Nigerian State or LGA name in the address"
+          }
+        ],
+        "issue_summary": {
+          "critical": 1,
+          "warning": 1,
+          "info": 0
+        },
+        "recommendations": [
+          "Address all CRITICAL issues before final approval"
+        ],
+        "requires_manual_review": true,
+        "review_priority": "HIGH",
+        "verified_at": "2026-06-19T10:58:17.389Z",
+        "submission_type": "online"
+      },
+      "verified_at": "2026-06-19T10:58:17.391Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": 1,
+      "supervisor_id": 1,
+      "record_id": 2,
+      "type": "verification_alert",
+      "title": "Record Requires Review: John Doe",
+      "message": "Priority: HIGH. Issues: 1",
+      "priority": "HIGH",
+      "status": "unread",
+      "metadata": {
+        "record_id": 2,
+        "household_id": "HH-001",
+        "respondent": "John Doe",
+        "verification_status": "FAIL",
+        "confidence_score": 85,
+        "issues": [
+          {
+            "field": "household_id",
+            "severity": "CRITICAL",
+            "message": "Invalid format: \"HH-001\"",
+            "suggested_fix": "Use format HH-2026-001"
+          }
+        ],
+        "issue_summary": {
+          "critical": 1,
+          "warning": 0,
+          "info": 0
+        },
+        "recommendations": [
+          "Address all CRITICAL issues before final approval"
+        ],
+        "requires_manual_review": true,
+        "review_priority": "HIGH",
+        "verified_at": "2026-06-19T10:26:50.396Z",
+        "submission_type": "online"
+      },
+      "created_at": "2026-06-19T10:26:50.398Z",
+      "updated_at": "2026-06-19T10:26:50.398Z"
+    },
+    {
+      "id": 2,
+      "supervisor_id": 8,
+      "record_id": 2,
+      "type": "verification_alert",
+      "title": "Record Requires Review: John Doe",
+      "message": "Priority: HIGH. Issues: 1",
+      "priority": "HIGH",
+      "status": "unread",
+      "metadata": {
+        "record_id": 2,
+        "household_id": "HH-001",
+        "respondent": "John Doe",
+        "verification_status": "FAIL",
+        "confidence_score": 85,
+        "issues": [
+          {
+            "field": "household_id",
+            "severity": "CRITICAL",
+            "message": "Invalid format: \"HH-001\"",
+            "suggested_fix": "Use format HH-2026-001"
+          }
+        ],
+        "issue_summary": {
+          "critical": 1,
+          "warning": 0,
+          "info": 0
+        },
+        "recommendations": [
+          "Address all CRITICAL issues before final approval"
+        ],
+        "requires_manual_review": true,
+        "review_priority": "HIGH",
+        "verified_at": "2026-06-19T10:26:50.396Z",
+        "submission_type": "online"
+      },
+      "created_at": "2026-06-19T10:26:50.398Z",
+      "updated_at": "2026-06-19T10:26:50.398Z"
+    },
+    {
+      "id": 3,
+      "supervisor_id": 1,
+      "record_id": null,
+      "type": "batch_verification_alert",
+      "title": "Batch Verification Complete: 1 High Priority Records",
+      "message": "0 passed, 0 warned, 1 failed",
+      "priority": "HIGH",
+      "status": "unread",
+      "metadata": {
+        "generated_at": "2026-06-19T10:58:17.391Z",
+        "total_records": 1,
+        "pass": 0,
+        "warn": 0,
+        "fail": 1,
+        "pass_rate_pct": 0,
+        "average_confidence_score": 80,
+        "records_requiring_review": 1,
+        "high_priority_count": 1,
+        "most_common_issues": [
+          {
+            "field": "household_id",
+            "count": 1
+          },
+          {
+            "field": "location_address",
+            "count": 1
+          }
+        ],
+        "results": [
+          {
+            "record_id": 3,
+            "household_id": "HH-1781866597530-171",
+            "respondent": "sddd ddd",
+            "verification_status": "FAIL",
+            "confidence_score": 80,
+            "issues": [
+              {
+                "field": "household_id",
+                "severity": "CRITICAL",
+                "message": "Invalid format: \"HH-1781866597530-171\"",
+                "suggested_fix": "Use format HH-2026-001"
+              },
+              {
+                "field": "location_address",
+                "severity": "WARNING",
+                "message": "Address \"junior lowcust\" does not reference a known Nigerian State or LGA",
+                "suggested_fix": "Include a valid Nigerian State or LGA name in the address"
+              }
+            ],
+            "issue_summary": {
+              "critical": 1,
+              "warning": 1,
+              "info": 0
+            },
+            "recommendations": [
+              "Address all CRITICAL issues before final approval"
+            ],
+            "requires_manual_review": true,
+            "review_priority": "HIGH",
+            "verified_at": "2026-06-19T10:58:17.389Z",
+            "submission_type": "online"
+          }
+        ]
+      },
+      "created_at": "2026-06-19T10:58:17.414Z",
+      "updated_at": "2026-06-19T10:58:17.414Z"
+    },
+    {
+      "id": 4,
+      "supervisor_id": 8,
+      "record_id": null,
+      "type": "batch_verification_alert",
+      "title": "Batch Verification Complete: 1 High Priority Records",
+      "message": "0 passed, 0 warned, 1 failed",
+      "priority": "HIGH",
+      "status": "unread",
+      "metadata": {
+        "generated_at": "2026-06-19T10:58:17.391Z",
+        "total_records": 1,
+        "pass": 0,
+        "warn": 0,
+        "fail": 1,
+        "pass_rate_pct": 0,
+        "average_confidence_score": 80,
+        "records_requiring_review": 1,
+        "high_priority_count": 1,
+        "most_common_issues": [
+          {
+            "field": "household_id",
+            "count": 1
+          },
+          {
+            "field": "location_address",
+            "count": 1
+          }
+        ],
+        "results": [
+          {
+            "record_id": 3,
+            "household_id": "HH-1781866597530-171",
+            "respondent": "sddd ddd",
+            "verification_status": "FAIL",
+            "confidence_score": 80,
+            "issues": [
+              {
+                "field": "household_id",
+                "severity": "CRITICAL",
+                "message": "Invalid format: \"HH-1781866597530-171\"",
+                "suggested_fix": "Use format HH-2026-001"
+              },
+              {
+                "field": "location_address",
+                "severity": "WARNING",
+                "message": "Address \"junior lowcust\" does not reference a known Nigerian State or LGA",
+                "suggested_fix": "Include a valid Nigerian State or LGA name in the address"
+              }
+            ],
+            "issue_summary": {
+              "critical": 1,
+              "warning": 1,
+              "info": 0
+            },
+            "recommendations": [
+              "Address all CRITICAL issues before final approval"
+            ],
+            "requires_manual_review": true,
+            "review_priority": "HIGH",
+            "verified_at": "2026-06-19T10:58:17.389Z",
+            "submission_type": "online"
+          }
+        ]
+      },
+      "created_at": "2026-06-19T10:58:17.414Z",
+      "updated_at": "2026-06-19T10:58:17.414Z"
+    },
+    {
+      "id": 5,
+      "supervisor_id": 10,
+      "record_id": null,
+      "type": "batch_verification_alert",
+      "title": "Batch Verification Complete: 1 High Priority Records",
+      "message": "0 passed, 0 warned, 1 failed",
+      "priority": "HIGH",
+      "status": "unread",
+      "metadata": {
+        "generated_at": "2026-06-19T10:58:17.391Z",
+        "total_records": 1,
+        "pass": 0,
+        "warn": 0,
+        "fail": 1,
+        "pass_rate_pct": 0,
+        "average_confidence_score": 80,
+        "records_requiring_review": 1,
+        "high_priority_count": 1,
+        "most_common_issues": [
+          {
+            "field": "household_id",
+            "count": 1
+          },
+          {
+            "field": "location_address",
+            "count": 1
+          }
+        ],
+        "results": [
+          {
+            "record_id": 3,
+            "household_id": "HH-1781866597530-171",
+            "respondent": "sddd ddd",
+            "verification_status": "FAIL",
+            "confidence_score": 80,
+            "issues": [
+              {
+                "field": "household_id",
+                "severity": "CRITICAL",
+                "message": "Invalid format: \"HH-1781866597530-171\"",
+                "suggested_fix": "Use format HH-2026-001"
+              },
+              {
+                "field": "location_address",
+                "severity": "WARNING",
+                "message": "Address \"junior lowcust\" does not reference a known Nigerian State or LGA",
+                "suggested_fix": "Include a valid Nigerian State or LGA name in the address"
+              }
+            ],
+            "issue_summary": {
+              "critical": 1,
+              "warning": 1,
+              "info": 0
+            },
+            "recommendations": [
+              "Address all CRITICAL issues before final approval"
+            ],
+            "requires_manual_review": true,
+            "review_priority": "HIGH",
+            "verified_at": "2026-06-19T10:58:17.389Z",
+            "submission_type": "online"
+          }
+        ]
+      },
+      "created_at": "2026-06-19T10:58:17.414Z",
+      "updated_at": "2026-06-19T10:58:17.414Z"
+    },
+    {
+      "id": 6,
+      "supervisor_id": 1,
+      "record_id": null,
+      "type": "batch_verification_alert",
+      "title": "Scheduled Batch Verification: 1 High Priority Records",
+      "message": "0 passed, 0 warned, 1 failed. Pass rate: 0%",
+      "priority": "HIGH",
+      "status": "unread",
+      "metadata": {
+        "generated_at": "2026-06-19T11:00:00.838Z",
+        "total_records": 1,
+        "pass": 0,
+        "warn": 0,
+        "fail": 1,
+        "pass_rate_pct": 0,
+        "average_confidence_score": 80,
+        "records_requiring_review": 1,
+        "high_priority_count": 1,
+        "most_common_issues": [
+          {
+            "field": "household_id",
+            "count": 1
+          },
+          {
+            "field": "location_address",
+            "count": 1
+          }
+        ],
+        "results": [
+          {
+            "record_id": 1,
+            "household_id": "HH-1780563295734-452",
+            "respondent": "wisdom bello",
+            "verification_status": "FAIL",
+            "confidence_score": 80,
+            "issues": [
+              {
+                "field": "household_id",
+                "severity": "CRITICAL",
+                "message": "Invalid format: \"HH-1780563295734-452\"",
+                "suggested_fix": "Use format HH-2026-001"
+              },
+              {
+                "field": "location_address",
+                "severity": "WARNING",
+                "message": "Address \"junior qtrs, maikunkele\" does not reference a known Nigerian State or LGA",
+                "suggested_fix": "Include a valid Nigerian State or LGA name in the address"
+              }
+            ],
+            "issue_summary": {
+              "critical": 1,
+              "warning": 1,
+              "info": 0
+            },
+            "recommendations": [
+              "Address all CRITICAL issues before final approval"
+            ],
+            "requires_manual_review": true,
+            "review_priority": "HIGH",
+            "verified_at": "2026-06-19T11:00:00.811Z",
+            "submission_type": "online"
+          }
+        ]
+      },
+      "created_at": "2026-06-19T11:00:00.840Z",
+      "updated_at": "2026-06-19T11:00:00.841Z"
+    },
+    {
+      "id": 7,
+      "supervisor_id": 8,
+      "record_id": null,
+      "type": "batch_verification_alert",
+      "title": "Scheduled Batch Verification: 1 High Priority Records",
+      "message": "0 passed, 0 warned, 1 failed. Pass rate: 0%",
+      "priority": "HIGH",
+      "status": "unread",
+      "metadata": {
+        "generated_at": "2026-06-19T11:00:00.838Z",
+        "total_records": 1,
+        "pass": 0,
+        "warn": 0,
+        "fail": 1,
+        "pass_rate_pct": 0,
+        "average_confidence_score": 80,
+        "records_requiring_review": 1,
+        "high_priority_count": 1,
+        "most_common_issues": [
+          {
+            "field": "household_id",
+            "count": 1
+          },
+          {
+            "field": "location_address",
+            "count": 1
+          }
+        ],
+        "results": [
+          {
+            "record_id": 1,
+            "household_id": "HH-1780563295734-452",
+            "respondent": "wisdom bello",
+            "verification_status": "FAIL",
+            "confidence_score": 80,
+            "issues": [
+              {
+                "field": "household_id",
+                "severity": "CRITICAL",
+                "message": "Invalid format: \"HH-1780563295734-452\"",
+                "suggested_fix": "Use format HH-2026-001"
+              },
+              {
+                "field": "location_address",
+                "severity": "WARNING",
+                "message": "Address \"junior qtrs, maikunkele\" does not reference a known Nigerian State or LGA",
+                "suggested_fix": "Include a valid Nigerian State or LGA name in the address"
+              }
+            ],
+            "issue_summary": {
+              "critical": 1,
+              "warning": 1,
+              "info": 0
+            },
+            "recommendations": [
+              "Address all CRITICAL issues before final approval"
+            ],
+            "requires_manual_review": true,
+            "review_priority": "HIGH",
+            "verified_at": "2026-06-19T11:00:00.811Z",
+            "submission_type": "online"
+          }
+        ]
+      },
+      "created_at": "2026-06-19T11:00:00.841Z",
+      "updated_at": "2026-06-19T11:00:00.841Z"
+    },
+    {
+      "id": 8,
+      "supervisor_id": 10,
+      "record_id": null,
+      "type": "batch_verification_alert",
+      "title": "Scheduled Batch Verification: 1 High Priority Records",
+      "message": "0 passed, 0 warned, 1 failed. Pass rate: 0%",
+      "priority": "HIGH",
+      "status": "unread",
+      "metadata": {
+        "generated_at": "2026-06-19T11:00:00.838Z",
+        "total_records": 1,
+        "pass": 0,
+        "warn": 0,
+        "fail": 1,
+        "pass_rate_pct": 0,
+        "average_confidence_score": 80,
+        "records_requiring_review": 1,
+        "high_priority_count": 1,
+        "most_common_issues": [
+          {
+            "field": "household_id",
+            "count": 1
+          },
+          {
+            "field": "location_address",
+            "count": 1
+          }
+        ],
+        "results": [
+          {
+            "record_id": 1,
+            "household_id": "HH-1780563295734-452",
+            "respondent": "wisdom bello",
+            "verification_status": "FAIL",
+            "confidence_score": 80,
+            "issues": [
+              {
+                "field": "household_id",
+                "severity": "CRITICAL",
+                "message": "Invalid format: \"HH-1780563295734-452\"",
+                "suggested_fix": "Use format HH-2026-001"
+              },
+              {
+                "field": "location_address",
+                "severity": "WARNING",
+                "message": "Address \"junior qtrs, maikunkele\" does not reference a known Nigerian State or LGA",
+                "suggested_fix": "Include a valid Nigerian State or LGA name in the address"
+              }
+            ],
+            "issue_summary": {
+              "critical": 1,
+              "warning": 1,
+              "info": 0
+            },
+            "recommendations": [
+              "Address all CRITICAL issues before final approval"
+            ],
+            "requires_manual_review": true,
+            "review_priority": "HIGH",
+            "verified_at": "2026-06-19T11:00:00.811Z",
+            "submission_type": "online"
+          }
+        ]
+      },
+      "created_at": "2026-06-19T11:00:00.842Z",
+      "updated_at": "2026-06-19T11:00:00.842Z"
     }
   ]
 }

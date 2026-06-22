@@ -10,6 +10,7 @@ const authRoutes = require('./routes/auth');
 const censusRoutes = require('./routes/census');
 const aiRoutes = require('./routes/ai');
 const adminRoutes = require('./routes/admin');
+const verifyRoutes = require('./routes/verify');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -44,6 +45,7 @@ const startServer = async () => {
     app.use('/api/census', censusRoutes);
     app.use('/api/ai', aiRoutes);
     app.use('/api/admin', adminRoutes);
+    app.use('/api/verify', verifyRoutes);
 
     // Error handling middleware (must be last)
     app.use(errorHandler);

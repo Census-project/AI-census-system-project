@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { Users2, BarChart3, ClipboardList, MapPin, Clock3 } from "lucide-react";
+import VerificationDashboard from "@/components/VerificationDashboard";
 
 interface AssignedSurvey {
   name: string;
@@ -249,6 +250,9 @@ export default function SupervisorDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Verification Dashboard Section */}
+      <VerificationDashboard />
     </section>
   );
 }

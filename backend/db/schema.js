@@ -38,6 +38,10 @@ const initializeDatabase = async () => {
         sync_status VARCHAR(50) DEFAULT 'synced',
         is_duplicate BOOLEAN DEFAULT FALSE,
         anomaly_flags TEXT,
+        verification_status VARCHAR(50) DEFAULT 'pending',
+        verification_results TEXT,
+        verified_at TIMESTAMP,
+        verified_by_agent BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -66,6 +70,29 @@ const initializeDatabase = async () => {
         changes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Create notifications table for supervisor alerts
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        supervisor_id INT REFERENCES users(id) ON DELETE CASCADE,
+        record_id VARCHAR(255),
+        type VARCHAR(100) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        message TEXT,
+        priority VARCHAR(50) DEFAULT 'LOW',
+        status VARCHAR(50) DEFAULT 'unread',
+        metadata TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create index on notifications for quick lookups
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_supervisor_status
+      ON notifications(supervisor_id, status)
     `);
 
     // Create survey assignment table for admin workflows

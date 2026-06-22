@@ -1,33 +1,47 @@
 const express = require('express');
 const pool = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
-const { OpenAI } = require('openai');
+const Anthropic = require('@anthropic-ai/sdk');
 
 const router = express.Router();
 
 const normalizeQuery = (query = '') => query.toLowerCase();
 
-const openaiClient = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+const claudeClient = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
 
 const buildAIPrompt = (query, records) => {
   const geotagged = records.filter((r) => r.gps_latitude !== null && r.gps_longitude !== null).length;
   const online = records.filter((r) => r.submission_type === 'online').length;
   const offline = records.length - online;
+  const males = records.filter((r) => r.gender === 'M').length;
+  const females = records.filter((r) => r.gender === 'F').length;
   const avgAge = records.filter((r) => typeof r.age === 'number').map((r) => r.age);
   const avgAgeValue = avgAge.length ? Math.round(avgAge.reduce((sum, value) => sum + value, 0) / avgAge.length) : 'N/A';
+  
+  const states = records.reduce((acc, r) => {
+    const state = r.state || 'Unknown';
+    acc[state] = (acc[state] || 0) + 1;
+    return acc;
+  }, {});
+  const topState = Object.entries(states).sort((a, b) => b[1] - a[1])[0] || ['Unknown', 0];
 
-  return `You are a helpful assistant for a Nigerian census data collection dashboard. Use the dataset summary below to answer the user's question clearly and concisely. Do not invent unsupported facts.
+  return `You are a helpful assistant for a Nigerian census data collection dashboard. Use the dataset summary below to answer the user's question clearly and concisely. Provide specific numbers and insights. Do not invent unsupported facts.
 
-Dataset summary:
+Dataset Summary:
 - Total records: ${records.length}
+- Males: ${males}
+- Females: ${females}
+- Gender ratio: ${males}:${females}
+- Average age: ${avgAgeValue} years
 - Geotagged records: ${geotagged}
 - Online submissions: ${online}
 - Offline submissions: ${offline}
-- Average age: ${avgAgeValue}
+- Top state: ${topState[0]} (${topState[1]} records)
+- Total states represented: ${Object.keys(states).length}
 
-User question: ${query}
+User's question: ${query}
 
-Answer:`;
+Provide a clear, concise answer with specific numbers from the data above.`;
 };
 
 router.post('/query', verifyToken, async (req, res) => {
@@ -55,28 +69,54 @@ router.post('/query', verifyToken, async (req, res) => {
         result = { type: 'count', title: 'Online Submissions', value: getCount((r) => r.submission_type === 'online') };
       } else if (lowerQuery.includes('offline')) {
         result = { type: 'count', title: 'Offline Submissions', value: getCount((r) => r.submission_type !== 'online') };
+      } else if (lowerQuery.includes('household')) {
+        result = { type: 'count', title: 'Total Households', value: records.length };
       } else {
         result = { type: 'count', title: 'Total Records', value: records.length };
       }
+    } else if (lowerQuery.includes('gender') && (lowerQuery.includes('ratio') || lowerQuery.includes('breakdown') || lowerQuery.includes('distribution'))) {
+      const maleCount = getCount((r) => r.gender === 'M');
+      const femaleCount = getCount((r) => r.gender === 'F');
+      result = {
+        type: 'percentage',
+        title: 'Gender Distribution',
+        value: `M: ${maleCount}, F: ${femaleCount}`,
+        details: `Male: ${Math.round((maleCount / records.length) * 100)}%, Female: ${Math.round((femaleCount / records.length) * 100)}%`,
+        data: [['Male', maleCount], ['Female', femaleCount]]
+      };
     } else if (lowerQuery.includes('average') || lowerQuery.includes('avg') || lowerQuery.includes('mean')) {
       if (lowerQuery.includes('age')) {
         const ages = records.filter((r) => typeof r.age === 'number').map((r) => r.age);
         const avg = ages.length ? Math.round(ages.reduce((sum, value) => sum + value, 0) / ages.length) : 0;
         result = { type: 'average', title: 'Average Age', value: avg, details: 'years' };
       }
-    } else if (lowerQuery.includes('location') || lowerQuery.includes('area') || lowerQuery.includes('region')) {
-      const locations = records.reduce((acc, r) => {
-        const loc = String(r.location_address || 'Unknown').split(',')[0].trim() || 'Unknown';
-        acc[loc] = (acc[loc] || 0) + 1;
-        return acc;
-      }, {});
-      const topLocation = Object.entries(locations).sort((a, b) => b[1] - a[1])[0];
-      result = {
-        type: 'list',
-        title: 'Top Location',
-        value: topLocation ? `${topLocation[0]} (${topLocation[1]} records)` : 'No data',
-        data: Object.entries(locations).slice(0, 5),
-      };
+    } else if (lowerQuery.includes('state') || lowerQuery.includes('location') || lowerQuery.includes('area') || lowerQuery.includes('region')) {
+      if (lowerQuery.includes('state') && (lowerQuery.includes('breakdown') || lowerQuery.includes('distribution') || lowerQuery.includes('by state'))) {
+        const states = records.reduce((acc, r) => {
+          const state = r.state || r.location_address?.split(',')[0] || 'Unknown';
+          acc[state] = (acc[state] || 0) + 1;
+          return acc;
+        }, {});
+        result = {
+          type: 'list',
+          title: 'Records by State',
+          value: `Data across ${Object.keys(states).length} states`,
+          data: Object.entries(states).sort((a, b) => b[1] - a[1]).slice(0, 10)
+        };
+      } else {
+        const locations = records.reduce((acc, r) => {
+          const loc = String(r.location_address || 'Unknown').split(',')[0].trim() || 'Unknown';
+          acc[loc] = (acc[loc] || 0) + 1;
+          return acc;
+        }, {});
+        const topLocation = Object.entries(locations).sort((a, b) => b[1] - a[1])[0];
+        result = {
+          type: 'list',
+          title: 'Top Location',
+          value: topLocation ? `${topLocation[0]} (${topLocation[1]} records)` : 'No data',
+          data: Object.entries(locations).slice(0, 5)
+        };
+      }
     } else if (lowerQuery.includes('age') && (lowerQuery.includes('distribution') || lowerQuery.includes('breakdown'))) {
       const ageGroups = records.reduce((acc, r) => {
         const age = Number(r.age);
@@ -104,25 +144,36 @@ router.post('/query', verifyToken, async (req, res) => {
       result = { type: 'trend', title: 'Recent Submissions', value: `${trend.length} recent records`, data: trend };
     }
 
-    if (openaiClient) {
+    if (claudeClient) {
       const prompt = buildAIPrompt(query, records);
-      const response = await openaiClient.responses.create({
-        model: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
-        input: prompt,
-      });
+      try {
+        const response = await claudeClient.messages.create({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1024,
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ]
+        });
 
-      const answer = response.output?.[0]?.content?.find((item) => item.type === 'output_text')?.text ||
-        response.output?.[0]?.content?.[0]?.text ||
-        'I could not generate an answer at this time.';
+        const answer = response.content[0]?.type === 'text' 
+          ? response.content[0].text 
+          : 'I could not generate an answer at this time.';
 
-      return res.json({ success: true, answer: answer.trim() });
+        return res.json({ success: true, result: { type: 'count', title: 'Claude Analysis', value: answer } });
+      } catch (claudeError) {
+        console.error('Claude API error:', claudeError);
+        // Fall back to rule-based answer if Claude fails
+      }
     }
 
     if (result) {
       return res.json({ success: true, result });
     }
 
-    return res.json({ success: false, message: 'Query not understood. Try asking about counts, averages, locations, or trends.' });
+    return res.json({ success: false, message: 'Query not understood. Try asking about counts, averages, locations, gender distribution, state breakdown, or trends.' });
   } catch (err) {
     console.error('AI query error:', err);
     res.status(500).json({ error: 'AI query processing failed' });
