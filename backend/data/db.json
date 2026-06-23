@@ -92,6 +92,16 @@
       "status": "active",
       "created_at": "2026-06-19T10:30:55.969Z",
       "assigned_surveys": []
+    },
+    {
+      "id": 11,
+      "username": "tempuser123",
+      "email": "tempuser123@example.com",
+      "password_hash": "$2a$10$KDomAOeFRUDxP.QWkaEUiO0RlCM3yyEFiyEErwBTw6AUTf9RRBSqC",
+      "role": "enumerator",
+      "status": "active",
+      "created_at": "2026-06-23T13:24:40.099Z",
+      "assigned_surveys": []
     }
   ],
   "censusRecords": [

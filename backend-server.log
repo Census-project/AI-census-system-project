@@ -1,0 +1,32 @@
+
+> backend@1.0.0 start:local
+> node index-local.js
+
+✓ Census API running on http://localhost:3001
+✓ Mode: Local Development (JSON file storage)
+✓ Database file: c:\Users\wisdom\LOCALREPO\backend\data\db.json
+
+Available endpoints:
+  POST   /api/auth/register
+  POST   /api/auth/login
+  POST   /api/census/submit
+  POST   /api/census/batch
+  GET    /api/census/records
+  POST   /api/ai/query
+  GET    /api/ai/insights
+  POST   /api/ai/validation
+  POST   /api/ai/anomaly
+  GET    /api/ai/mapping
+  GET    /api/admin/users
+  GET    /api/admin/stats
+  GET    /api/admin/export
+  GET    /api/verify/report
+  GET    /api/verify/batch
+  POST   /api/verify/batch
+  GET    /api/verify/record/:id
+  POST   /api/verify/record/:id
+  GET    /api/verify/flagged
+  GET    /api/verify/notifications
+  POST   /api/verify/notifications/:id/read
+
+⏰ Scheduler: Batch verification runs every 6 hours

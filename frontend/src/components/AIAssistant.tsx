@@ -94,10 +94,17 @@ export default function AIAssistant() {
 
     try {
       const data = await api.processNaturalQuery(input, token);
+      const result = data.result;
+      const assistantContent = data.answer
+        ? data.answer
+        : result
+          ? `${result.title}: ${result.value}${result.details ? `\n${result.details}` : ''}`
+          : data.message || 'I am not sure how to answer that right now.';
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data.answer || data.result?.title || data.message || 'I am not sure how to answer that right now.',
+        content: assistantContent,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
