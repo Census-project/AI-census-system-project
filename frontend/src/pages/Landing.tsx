@@ -31,26 +31,88 @@ const illustrations = [
   {
     label: "Field data collection",
     caption: "AI-generated illustration showing the mobile field workflow.",
-    src: "images\\ChatGPT Image Jun 10, 2026, 03_30_20 PM.png",
+    src: "/images/ChatGPT Image Jun 10, 2026, 03_30_20 PM.png",
   },
   {
     label: "Supervisor review dashboard",
     caption: "AI-generated illustration showing a review dashboard and oversight panel.",
-    src: "images\\ChatGPT Image Jun 10, 2026, 02_58_50 PM.png",
+    src: "/images/ChatGPT Image Jun 10, 2026, 02_58_50 PM.png",
   },
   {
     label: "Smart validation and mapping",
     caption: "AI-generated illustration showing validation checks and map insights.",
-    src: "images\\ChatGPT Image Jun 10, 2026, 03_27_05 PM.png",
+    src: "/images/ChatGPT Image Jun 10, 2026, 03_27_05 PM.png",
   },
 ];
 
 export default function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0">
+          <img
+            src="/images/banner image.png"
+            alt="Census platform banner"
+            className="h-[520px] w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-slate-950/40" />
+        </div>
+
+        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="max-w-3xl text-center text-white">
+            <span className="inline-flex rounded-full bg-primary/20 px-4 py-1 text-sm font-semibold text-primary-100">
+              Digital census platform
+            </span>
+            <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
+              Modern census collection, supervision, and verification in one web app.
+            </h1>
+            <p className="mt-6 text-base text-slate-200 sm:text-lg">
+              Empower enumerators with faster field reporting, give supervisors full visibility into collected data, and keep your census workflow secure with role-based access.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <Button className="bg-white text-slate-950 shadow-xl shadow-slate-950/15 hover:bg-slate-100" asChild>
+                <Link to="/app">Launch the app</Link>
+              </Button>
+              <Button
+                variant="outline"
+                className="border-white/40 bg-white/90 text-slate-950 shadow-lg shadow-slate-950/10 hover:bg-white"
+                asChild
+              >
+                <Link to="/app">Sign in or register</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <nav className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/95 px-4 py-3 shadow-xl shadow-slate-950/20 backdrop-blur-md sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6">
+          <div className="text-sm font-semibold text-white">Census Dashboard</div>
+          <div className="hidden items-center gap-4 text-sm text-slate-200 sm:flex">
+            <a href="#features" className="transition-colors hover:text-white">Features</a>
+            <a href="#illustrations" className="transition-colors hover:text-white">Illustrations</a>
+            <a href="#overview" className="transition-colors hover:text-white">Overview</a>
+            <a
+              href="/app"
+              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-white transition-colors hover:bg-white/20"
+            >
+              Go to App
+            </a>
+          </div>
+          <div className="flex items-center gap-3 sm:hidden">
+            <a
+              href="/app"
+              className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-white transition-colors hover:bg-white/20"
+            >
+              App
+            </a>
+          </div>
+        </div>
+      </nav>
+
       <div className="relative overflow-hidden px-4 py-12 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="grid gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div id="features" className="grid gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <motion.div
               initial={{ opacity: 0, x: -24 }}
               animate={{ opacity: 1, x: 0 }}
@@ -107,7 +169,7 @@ export default function Landing() {
             </motion.div>
           </div>
 
-          <div className="mt-16">
+          <div id="overview" className="mt-16">
             <div className="mb-8 text-center">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary">AI illustrations</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-foreground">Visualizing the census workflow with AI-generated art</h2>
@@ -115,7 +177,7 @@ export default function Landing() {
                 These illustrations are generated by AI to show how the app brings together data capture, field teams, supervision, and analytics.
               </p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div id="illustrations" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {illustrations.map((item) => (
                 <div key={item.label} className="overflow-hidden rounded-3xl border border-border/70 bg-card/80 shadow-sm">
                   <div className="aspect-[4/3] w-full overflow-hidden bg-slate-100">

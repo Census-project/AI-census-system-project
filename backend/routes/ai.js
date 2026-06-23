@@ -59,10 +59,10 @@ router.post('/query', verifyToken, async (req, res) => {
     let result = null;
 
     if (lowerQuery.includes('how many') || lowerQuery.includes('count') || lowerQuery.includes('total')) {
-      if (lowerQuery.includes('male') || lowerQuery.includes('men')) {
-        result = { type: 'count', title: 'Male Records', value: getCount((r) => r.gender === 'M') };
-      } else if (lowerQuery.includes('female') || lowerQuery.includes('women')) {
+      if (lowerQuery.includes('female') || lowerQuery.includes('women')) {
         result = { type: 'count', title: 'Female Records', value: getCount((r) => r.gender === 'F') };
+      } else if (/\bmale\b|\bmen\b/.test(lowerQuery)) {
+        result = { type: 'count', title: 'Male Records', value: getCount((r) => r.gender === 'M') };
       } else if (lowerQuery.includes('geotagged') || lowerQuery.includes('coordinates')) {
         result = { type: 'count', title: 'Geotagged Records', value: getCount((r) => r.gps_latitude !== null && r.gps_longitude !== null) };
       } else if (lowerQuery.includes('online')) {

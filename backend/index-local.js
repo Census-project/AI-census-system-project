@@ -488,57 +488,82 @@ app.post('/api/ai/query', verifyToken, (req, res) => {
       return res.status(400).json({ error: 'Query string is required' });
     }
 
+    if (censusRecords.length === 0) {
+      return res.json({ success: false, message: "No data available yet. Start capturing census records to analyze." });
+    }
+
     const lowerQuery = query.toLowerCase();
     let result = null;
 
-    // Count queries
-    if (lowerQuery.includes("how many") || lowerQuery.includes("count") || lowerQuery.includes("total")) {
-      if (lowerQuery.includes("male") || lowerQuery.includes("men")) {
-        const count = censusRecords.filter(r => r.gender === "M").length;
-        result = { type: "count", title: "Male Records", value: count };
-      } else if (lowerQuery.includes("female") || lowerQuery.includes("women")) {
+    // Count queries - more flexible matching
+    if (/how many|count|total|show me|give me|what.*(?:total|count)|(?:total|count).*what/.test(lowerQuery)) {
+      if (/female|women|girl/.test(lowerQuery)) {
         const count = censusRecords.filter(r => r.gender === "F").length;
         result = { type: "count", title: "Female Records", value: count };
-      } else if (lowerQuery.includes("geotagged") || lowerQuery.includes("coordinates")) {
+      } else if (/\bmale\b|\bmen\b|\bboy\b/.test(lowerQuery)) {
+        const count = censusRecords.filter(r => r.gender === "M").length;
+        result = { type: "count", title: "Male Records", value: count };
+      } else if (/geotagged|coordinate|gps|location.*tagged/.test(lowerQuery)) {
         const count = censusRecords.filter(r => r.gps_latitude && r.gps_longitude).length;
         result = { type: "count", title: "Geotagged Records", value: count };
-      } else if (lowerQuery.includes("online")) {
+      } else if (/online|web|digital/.test(lowerQuery)) {
         const count = censusRecords.filter(r => r.submission_type === "online").length;
         result = { type: "count", title: "Online Submissions", value: count };
-      } else if (lowerQuery.includes("offline")) {
+      } else if (/offline|field|paper/.test(lowerQuery)) {
         const count = censusRecords.filter(r => r.submission_type !== "online").length;
         result = { type: "count", title: "Offline Submissions", value: count };
+      } else if (/household|family|person/.test(lowerQuery)) {
+        result = { type: "count", title: "Total Records", value: censusRecords.length };
       } else {
         result = { type: "count", title: "Total Records", value: censusRecords.length };
       }
     }
 
-    // Average queries
-    else if (lowerQuery.includes("average") || lowerQuery.includes("avg") || lowerQuery.includes("mean")) {
-      if (lowerQuery.includes("age")) {
-        const avg = Math.round(censusRecords.reduce((sum, r) => sum + Number(r.age), 0) / censusRecords.length);
-        result = { type: "average", title: "Average Age", value: avg, details: "years" };
+    // Average queries - more flexible matching
+    else if (/average|avg|mean|median|typical/.test(lowerQuery)) {
+      if (/age|old|year/.test(lowerQuery)) {
+        const ages = censusRecords.filter(r => typeof r.age === 'number' && r.age > 0).map(r => Number(r.age));
+        if (ages.length > 0) {
+          const avg = Math.round(ages.reduce((sum, r) => sum + r, 0) / ages.length);
+          result = { type: "average", title: "Average Age", value: avg, details: "years" };
+        } else {
+          result = { type: "average", title: "Average Age", value: "No valid age data" };
+        }
       }
     }
 
-    // Location queries
-    else if (lowerQuery.includes("location") || lowerQuery.includes("area") || lowerQuery.includes("region")) {
-      const locations = censusRecords.reduce((acc, r) => {
-        const loc = r.location_address.split(",")[0]?.trim() || "Unknown";
-        acc[loc] = (acc[loc] || 0) + 1;
-        return acc;
-      }, {});
-      const topLocation = Object.entries(locations).sort((a, b) => b[1] - a[1])[0];
-      result = {
-        type: "list",
-        title: "Top Location",
-        value: topLocation ? `${topLocation[0]} (${topLocation[1]} records)` : "No data",
-        data: Object.entries(locations).slice(0, 5)
-      };
+    // Location/State queries - more flexible matching
+    else if (/location|area|region|state|place|address|where/.test(lowerQuery)) {
+      if (/state.*breakdown|state.*distribution|breakdown.*state|distribution.*state|by state/.test(lowerQuery)) {
+        const states = censusRecords.reduce((acc, r) => {
+          const state = r.state || r.location_address?.split(",")[r.location_address?.split(",").length - 1]?.trim() || "Unknown";
+          acc[state] = (acc[state] || 0) + 1;
+          return acc;
+        }, {});
+        result = {
+          type: "list",
+          title: "Records by State",
+          value: `Data across ${Object.keys(states).length} states`,
+          data: Object.entries(states).sort((a, b) => b[1] - a[1]).slice(0, 10)
+        };
+      } else {
+        const locations = censusRecords.reduce((acc, r) => {
+          const loc = (r.location_address?.split(",")[0] || "Unknown").trim();
+          acc[loc] = (acc[loc] || 0) + 1;
+          return acc;
+        }, {});
+        const topLocation = Object.entries(locations).sort((a, b) => b[1] - a[1])[0];
+        result = {
+          type: "list",
+          title: "Top Locations",
+          value: topLocation ? `${topLocation[0]} (${topLocation[1]} records)` : "No location data",
+          data: Object.entries(locations).slice(0, 5)
+        };
+      }
     }
 
     // Age distribution queries
-    else if (lowerQuery.includes("age") && (lowerQuery.includes("distribution") || lowerQuery.includes("breakdown"))) {
+    else if (/age.*distribution|age.*breakdown|distribution.*age|breakdown.*age/.test(lowerQuery)) {
       const ageGroups = censusRecords.reduce((acc, r) => {
         const age = Number(r.age);
         const group = age <= 17 ? "0-17" : age <= 35 ? "18-35" : age <= 59 ? "36-59" : "60+";
@@ -553,76 +578,101 @@ app.post('/api/ai/query', verifyToken, (req, res) => {
       };
     }
 
+    // Gender distribution queries
+    else if (/gender|sex.*distribution|sex.*breakdown|male.*female|men.*women/.test(lowerQuery)) {
+      const maleCount = censusRecords.filter(r => r.gender === "M").length;
+      const femaleCount = censusRecords.filter(r => r.gender === "F").length;
+      const total = censusRecords.length;
+      result = {
+        type: "percentage",
+        title: "Gender Distribution",
+        value: `M: ${maleCount}, F: ${femaleCount}`,
+        details: total > 0 ? `Male: ${Math.round((maleCount / total) * 100)}%, Female: ${Math.round((femaleCount / total) * 100)}%` : "No data",
+        data: [["Male", maleCount], ["Female", femaleCount]]
+      };
+    }
+
     // Percentage queries
-    else if (lowerQuery.includes("percentage") || lowerQuery.includes("percent") || lowerQuery.includes("%")) {
-      if (lowerQuery.includes("geotagged")) {
-        const percentage = Math.round((censusRecords.filter(r => r.gps_latitude && r.gps_longitude).length / censusRecords.length) * 100);
+    else if (/percentage|percent|%|how much|proportion/.test(lowerQuery)) {
+      if (/geotagged|coordinate|gps/.test(lowerQuery)) {
+        const count = censusRecords.filter(r => r.gps_latitude && r.gps_longitude).length;
+        const percentage = Math.round((count / censusRecords.length) * 100);
         result = { type: "percentage", title: "Geotagged Records", value: `${percentage}%` };
-      } else if (lowerQuery.includes("online")) {
-        const percentage = Math.round((censusRecords.filter(r => r.submission_type === "online").length / censusRecords.length) * 100);
+      } else if (/online|web|digital/.test(lowerQuery)) {
+        const count = censusRecords.filter(r => r.submission_type === "online").length;
+        const percentage = Math.round((count / censusRecords.length) * 100);
         result = { type: "percentage", title: "Online Submissions", value: `${percentage}%` };
+      } else if (/offline|field|paper/.test(lowerQuery)) {
+        const count = censusRecords.filter(r => r.submission_type !== "online").length;
+        const percentage = Math.round((count / censusRecords.length) * 100);
+        result = { type: "percentage", title: "Offline Submissions", value: `${percentage}%` };
       }
     }
 
     // Trend queries
-    else if (lowerQuery.includes("trend") || lowerQuery.includes("recent") || lowerQuery.includes("last")) {
-      const recent = censusRecords.slice(-5).map(r => ({
-        date: new Date(r.submission_timestamp).toLocaleDateString(),
+    else if (/trend|recent|last|new|submission|latest/.test(lowerQuery)) {
+      const recent = censusRecords.slice(-10).map(r => ({
+        date: new Date(r.submission_timestamp || r.created_at).toLocaleDateString(),
         count: 1
       }));
       result = {
         type: "trend",
         title: "Recent Submissions",
-        value: `${recent.length} records in last submissions`,
+        value: `${recent.length} recent records`,
         data: recent
       };
     }
 
-    // Gender distribution queries
-    else if (lowerQuery.includes("gender") && (lowerQuery.includes("ratio") || lowerQuery.includes("breakdown") || lowerQuery.includes("distribution"))) {
-      const maleCount = censusRecords.filter(r => r.gender === "M").length;
-      const femaleCount = censusRecords.filter(r => r.gender === "F").length;
-      result = {
-        type: "percentage",
-        title: "Gender Distribution",
-        value: `M: ${maleCount}, F: ${femaleCount}`,
-        details: `Male: ${Math.round((maleCount / censusRecords.length) * 100)}%, Female: ${Math.round((femaleCount / censusRecords.length) * 100)}%`,
-        data: [["Male", maleCount], ["Female", femaleCount]]
-      };
-    }
-
-    // State-wise breakdown queries
-    else if ((lowerQuery.includes("state") || lowerQuery.includes("by state")) && (lowerQuery.includes("breakdown") || lowerQuery.includes("distribution"))) {
-      const states = censusRecords.reduce((acc, r) => {
-        const state = r.state || r.location_address?.split(",")[r.location_address.split(",").length - 1]?.trim() || "Unknown";
-        acc[state] = (acc[state] || 0) + 1;
-        return acc;
-      }, {});
-      result = {
-        type: "list",
-        title: "Records by State",
-        value: `Data across ${Object.keys(states).length} states`,
-        data: Object.entries(states).sort((a, b) => b[1] - a[1]).slice(0, 10)
-      };
-    }
-
-    // Household count queries
-    else if (lowerQuery.includes("household")) {
+    // Household/general queries
+    else if (/household|family|person|people|individual/.test(lowerQuery)) {
       result = {
         type: "count",
-        title: "Total Households",
+        title: "Total Records",
         value: censusRecords.length
+      };
+    }
+
+    // Summary/overview queries
+    else if (/summary|overview|statistics|stats|how is|tell me|what is/.test(lowerQuery)) {
+      const maleCount = censusRecords.filter(r => r.gender === "M").length;
+      const femaleCount = censusRecords.filter(r => r.gender === "F").length;
+      const geotaggedCount = censusRecords.filter(r => r.gps_latitude && r.gps_longitude).length;
+      const onlineCount = censusRecords.filter(r => r.submission_type === "online").length;
+      
+      result = {
+        type: "overview",
+        title: "Census Data Summary",
+        value: `${censusRecords.length} records collected`,
+        data: [
+          ["Total Records", censusRecords.length],
+          ["Male", maleCount],
+          ["Female", femaleCount],
+          ["Geotagged", geotaggedCount],
+          ["Online Submissions", onlineCount]
+        ]
       };
     }
 
     if (result) {
       res.json({ success: true, result });
     } else {
-      res.json({ success: false, message: "Query not understood. Try asking about counts, averages, locations, gender distribution, state breakdown, or trends." });
+      res.json({ 
+        success: false, 
+        message: `Query not understood. Try asking about: counts (e.g., "how many males"), averages (e.g., "average age"), locations, gender/age distribution, state breakdown, percentages, trends, or get a summary.`,
+        suggestions: [
+          "How many records do we have?",
+          "What's the average age?",
+          "Gender distribution",
+          "Show me by state",
+          "Age breakdown",
+          "Recent submissions",
+          "Summary of data"
+        ]
+      });
     }
   } catch (err) {
     console.error('AI query error:', err);
-    res.status(500).json({ error: 'AI query processing failed' });
+    res.status(500).json({ error: 'AI query processing failed', details: err.message });
   }
 });
 
