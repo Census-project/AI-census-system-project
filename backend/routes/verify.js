@@ -3,6 +3,7 @@ const pool = require('../config/database');
 const { verifyToken } = require('../middleware/auth');
 const { verifySingleRecord, verifyBatch } = require('../lib/censusVerify');
 const { notifySupervisor, notifyBatchCompletion, getNotificationsForUser, markNotificationRead } = require('../lib/notificationService');
+const { pingGeoIntegrityAgent } = require('../lib/geoIntegrityClient');
 
 const router = express.Router();
 
@@ -384,6 +385,57 @@ router.post('/notifications/:id/read', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('Mark read error:', err);
     res.status(500).json({ error: 'Failed to update notification' });
+  }
+});
+
+/**
+ * GET /api/verify/geo-report
+ * Geospatiotemporal integrity report (Census Integrity Agent — Google ADK).
+ * Shows how many records passed/warned/failed the satellite/geofence/clustering
+ * checks, plus whether the AI agent process is currently reachable.
+ */
+router.get('/geo-report', verifyToken, async (req, res) => {
+  try {
+    if (!isSupervisorOrAdmin(req)) {
+      return res.status(403).json({ error: 'Access denied. Supervisor or admin role required.' });
+    }
+
+    const timeframe = req.query.timeframe || '7days';
+    let dateFilter = '';
+    if (timeframe === '7days') {
+      dateFilter = "AND geo_verified_at >= NOW() - INTERVAL '7 days'";
+    } else if (timeframe === '30days') {
+      dateFilter = "AND geo_verified_at >= NOW() - INTERVAL '30 days'";
+    }
+
+    const summary = await pool.query(`
+      SELECT geo_verification_status, COUNT(*) as count, AVG(geo_confidence_score) as avg_confidence
+      FROM census_records
+      WHERE geo_verification_status IS NOT NULL ${dateFilter}
+      GROUP BY geo_verification_status
+    `);
+
+    const flaggedRecords = await pool.query(`
+      SELECT id, household_id, first_name, last_name, location_address,
+             gps_latitude, gps_longitude, geo_verification_status,
+             geo_confidence_score, geo_verification_results, geo_verified_at
+      FROM census_records
+      WHERE geo_verification_status = 'FAIL' ${dateFilter}
+      ORDER BY geo_verified_at DESC
+      LIMIT 50
+    `);
+
+    const agentStatus = await pingGeoIntegrityAgent();
+
+    res.json({
+      timeframe,
+      agent_status: agentStatus,
+      summary: summary.rows,
+      flagged_records: flaggedRecords.rows,
+    });
+  } catch (err) {
+    console.error('Geo report error:', err);
+    res.status(500).json({ error: 'Failed to generate geo-integrity report' });
   }
 });
 

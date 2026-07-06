@@ -365,10 +365,31 @@ id, user_id, action, entity_type, entity_id, changes, created_at
 - ✅ Role-based access control (RBAC)
 - ✅ Single & batch census data submission
 - ✅ Data validation with Joi schemas
-- ⏳ **AI Anomaly Detection** - ML models to flag duplicates & outliers
-- ⏳ **Geospatial Verification** - PostGIS integration for coverage mapping
+- ✅ **AI Anomaly Detection** - Rule-based verification engine flags duplicates & outliers (`lib/censusVerify.js`)
+- ✅ **Geospatiotemporal Verification** - Census Integrity Agent (Google ADK) — satellite building-footprint density checks, state geofencing, and temporal-spatial fraud detection (`ai-agent/`)
 - ⏳ **Sync Queue Management** - Handle offline submissions on reconnect
 - ⏳ **Audit Logging** - Track all data modifications
+
+---
+
+## Census Integrity Agent (Google ADK)
+
+A separate Python microservice (`ai-agent/`) adds geospatiotemporal + satellite-derived
+verification on top of the rule-based engine above:
+
+- **State boundary geofencing** — flags GPS coordinates that don't match the claimed state.
+- **Satellite building-footprint density** — cross-references submitted household locations
+  against real building structures (via OpenStreetMap, digitized from satellite/aerial imagery).
+- **Temporal-spatial clustering** — flags bursts of records submitted from the same spot in a
+  short time window (a signature of desk-fabricated data).
+
+Runs with a rule-based fallback by default; add a `GEMINI_API_KEY` to `ai-agent/.env` to enable
+the full Gemini-powered reasoning layer. See `ai-agent/README.md` for setup and architecture.
+
+The Node backend calls this service automatically on every census submission
+(`lib/geoIntegrityClient.js`) and stores results in the new `geo_verification_status`,
+`geo_verification_results`, and `geo_confidence_score` columns on `census_records`.
+Supervisors can view the aggregate report at `GET /api/verify/geo-report`.
 
 ---
 

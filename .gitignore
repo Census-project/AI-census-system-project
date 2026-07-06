@@ -1,0 +1,5 @@
+backend/ai-agent/venv/
+backend/ai-agent/__pycache__/
+backend/ai-agent/tools/__pycache__/
+backend/ai-agent/.env
+*.pyc

@@ -42,9 +42,22 @@ const initializeDatabase = async () => {
         verification_results TEXT,
         verified_at TIMESTAMP,
         verified_by_agent BOOLEAN DEFAULT FALSE,
+        geo_verification_status VARCHAR(50),
+        geo_verification_results TEXT,
+        geo_confidence_score INT,
+        geo_verified_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Add geo-verification columns for existing databases created before this feature
+    await pool.query(`
+      ALTER TABLE census_records
+      ADD COLUMN IF NOT EXISTS geo_verification_status VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS geo_verification_results TEXT,
+      ADD COLUMN IF NOT EXISTS geo_confidence_score INT,
+      ADD COLUMN IF NOT EXISTS geo_verified_at TIMESTAMP
     `);
 
     // Create index on GPS coordinates for spatial queries

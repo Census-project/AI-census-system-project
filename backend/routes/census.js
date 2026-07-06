@@ -4,6 +4,7 @@ const { verifyToken } = require('../middleware/auth');
 const { censusRecordSchema, batchSubmissionSchema } = require('../schema/validation');
 const { verifySingleRecord, verifyBatch } = require('../lib/censusVerify');
 const { notifySupervisor, notifyBatchCompletion } = require('../lib/notificationService');
+const { runGeoIntegrityCheck } = require('../lib/geoIntegrityClient');
 
 const router = express.Router();
 
@@ -105,12 +106,69 @@ router.post('/submit', verifyToken, async (req, res) => {
       }
     }
 
+    // Geospatiotemporal integrity check (Census Integrity Agent — Google ADK).
+    // Runs alongside the rule-based verification above; degrades gracefully
+    // (returns null) if the agent process isn't running, so it never blocks submission.
+    let geoResult = null;
+    try {
+      const recentRecordsRes = await pool.query(
+        `SELECT gps_latitude, gps_longitude, submission_timestamp AS created_date
+         FROM census_records
+         WHERE submission_timestamp >= NOW() - INTERVAL '30 minutes' AND id != $1
+         ORDER BY submission_timestamp DESC LIMIT 50`,
+        [record.id]
+      );
+
+      geoResult = await runGeoIntegrityCheck(
+        {
+          claimed_state: resolveStateFromAddress(record.location_address),
+          location_address: record.location_address,
+          gps_latitude: record.gps_latitude,
+          gps_longitude: record.gps_longitude,
+          household_count: 1,
+          submitted_at: record.submission_timestamp,
+        },
+        recentRecordsRes.rows
+      );
+
+      if (geoResult) {
+        await pool.query(
+          `UPDATE census_records
+           SET geo_verification_status = $1, geo_verification_results = $2,
+               geo_confidence_score = $3, geo_verified_at = NOW()
+           WHERE id = $4`,
+          [geoResult.verdict, JSON.stringify(geoResult), geoResult.confidence, record.id]
+        );
+
+        if (geoResult.verdict === 'FAIL') {
+          const supervisors = await pool.query('SELECT id FROM users WHERE role IN ($1, $2)', ['admin', 'supervisor']);
+          for (const supervisor of supervisors.rows) {
+            await notifySupervisor(
+              {
+                record_id: record.id,
+                household_id: record.household_id,
+                respondent: `${record.first_name} ${record.last_name}`,
+                verification_status: 'FAIL',
+                issue_summary: `Geospatial integrity check failed: ${geoResult.summary}`,
+                review_priority: 'HIGH',
+              },
+              supervisor.id
+            );
+          }
+        }
+      }
+    } catch (geoErr) {
+      console.error('Geo integrity check error (non-fatal):', geoErr.message);
+    }
+
     res.status(201).json({
       message: 'Census record submitted and verified successfully',
       record: {
         ...record,
         verification_status: verificationResult.verification_status,
         verification_results: verificationResult,
+        geo_verification_status: geoResult ? geoResult.verdict : null,
+        geo_verification_results: geoResult,
       },
     });
   } catch (err) {
