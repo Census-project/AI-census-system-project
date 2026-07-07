@@ -20,6 +20,90 @@ interface User {
   role: string;
 }
 
+export function resolveDashboardContent({ role, activeTab, isOnline }: { role: string; activeTab: string; isOnline: boolean }) {
+  if (activeTab === "overview" && role === "admin") {
+    return <AdminDashboard />;
+  }
+
+  if (activeTab === "overview") {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Card className="glass-card-hover border-border/80 bg-card/90 max-w-md">
+          <CardContent className="text-center p-8">
+            <ShieldCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">Workspace Overview</h3>
+            <p className="text-sm text-muted-foreground">
+              Your role-based dashboard summary will appear here with the latest task highlights.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (activeTab === "supervisor" && role === "supervisor") {
+    return <SupervisorDashboard />;
+  }
+
+  if (activeTab === "collect") {
+    return <CensusForm isOnline={isOnline} />;
+  }
+
+  if (activeTab === "analytics") {
+    return <AnalyticsDashboard />;
+  }
+
+  if (activeTab === "mapping") {
+    return <MappingDashboard />;
+  }
+
+  if (activeTab === "assistant") {
+    return <AIAssistant />;
+  }
+
+  if (activeTab === "reports") {
+    return <AnalyticsDashboard />;
+  }
+
+  if (activeTab === "activity") {
+    if (role === "admin") {
+      return <AdminDashboard />;
+    }
+    if (role === "supervisor") {
+      return <SupervisorDashboard />;
+    }
+    return <EnumeratorDashboard />;
+  }
+
+  if (activeTab === "users") {
+    return <AdminDashboard />;
+  }
+
+  if (activeTab === "sync") {
+    return (
+      <div className="rounded-3xl border border-border/80 bg-card/90 p-8 shadow-sm">
+        <h3 className="text-xl font-semibold text-foreground">Offline syncing</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Pending submissions and offline queue status are available here when the device reconnects.
+        </p>
+      </div>
+    );
+  }
+
+  if (activeTab === "settings") {
+    return (
+      <div className="rounded-3xl border border-border/80 bg-card/90 p-8 shadow-sm">
+        <h3 className="text-xl font-semibold text-foreground">Workspace settings</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Customize role preferences, notification thresholds, and field collection defaults here.
+        </p>
+      </div>
+    );
+  }
+
+  return <CensusForm isOnline={isOnline} />;
+}
+
 export default function Index() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [user, setUser] = useState<User | null>(null);
@@ -105,90 +189,7 @@ export default function Index() {
   }
 
   const renderDashboardContent = () => {
-    if (activeTab === "overview" && user.role === "admin") {
-      return <AdminDashboard />;
-    }
-
-    if (activeTab === "overview") {
-      return (
-        <div className="flex items-center justify-center py-12">
-          <Card className="glass-card-hover border-border/80 bg-card/90 max-w-md">
-            <CardContent className="text-center p-8">
-              <ShieldCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">Workspace Overview</h3>
-              <p className="text-sm text-muted-foreground">
-                Your role-based dashboard summary will appear here with the latest task highlights.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-
-    if (activeTab === "supervisor" && user.role === "supervisor") {
-      return <SupervisorDashboard />;
-    }
-
-    if (activeTab === "collect") {
-      if (user.role !== "admin" && user.role !== "supervisor") {
-        return <EnumeratorDashboard />;
-      }
-      return <CensusForm isOnline={isOnline} />;
-    }
-
-    if (activeTab === "analytics") {
-      return <AnalyticsDashboard />;
-    }
-
-    if (activeTab === "mapping") {
-      return <MappingDashboard />;
-    }
-
-    if (activeTab === "assistant") {
-      return <AIAssistant />;
-    }
-
-    if (activeTab === "reports") {
-      return <AnalyticsDashboard />;
-    }
-
-    if (activeTab === "activity") {
-      if (user.role === "admin") {
-        return <AdminDashboard />;
-      }
-      if (user.role === "supervisor") {
-        return <SupervisorDashboard />;
-      }
-      return <EnumeratorDashboard />;
-    }
-
-    if (activeTab === "users") {
-      return <AdminDashboard />;
-    }
-
-    if (activeTab === "sync") {
-      return (
-        <div className="rounded-3xl border border-border/80 bg-card/90 p-8 shadow-sm">
-          <h3 className="text-xl font-semibold text-foreground">Offline syncing</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Pending submissions and offline queue status are available here when the device reconnects.
-          </p>
-        </div>
-      );
-    }
-
-    if (activeTab === "settings") {
-      return (
-        <div className="rounded-3xl border border-border/80 bg-card/90 p-8 shadow-sm">
-          <h3 className="text-xl font-semibold text-foreground">Workspace settings</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Customize role preferences, notification thresholds, and field collection defaults here.
-          </p>
-        </div>
-      );
-    }
-
-    return <CensusForm isOnline={isOnline} />;
+    return resolveDashboardContent({ role: user.role, activeTab, isOnline });
   };
 
   return (

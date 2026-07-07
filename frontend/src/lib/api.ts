@@ -20,6 +20,8 @@ export interface CensusData {
   age: string;
   gender: string;
   phone: string;
+  nin?: string;
+  bvn?: string;
   location_address: string;
   gps_latitude: number | null;
   gps_longitude: number | null;

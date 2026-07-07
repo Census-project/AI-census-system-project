@@ -4,6 +4,17 @@ import { useMutation } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { MapPin, RefreshCw, Send, Trash2, Sparkles, Check } from "lucide-react";
 import { api, type CensusData } from "@/lib/api";
 import { guessGenderFromFirstName } from "@/lib/ai";
@@ -14,6 +25,8 @@ interface HouseholdMember {
   age: string;
   gender: string;
   phone: string;
+  nin: string;
+  bvn: string;
   employment_status: string;
   education_level: string;
   health_status: string;
@@ -46,6 +59,8 @@ const emptyMember = (): HouseholdMember => ({
   age: "",
   gender: "",
   phone: "",
+  nin: "",
+  bvn: "",
   employment_status: "",
   education_level: "",
   health_status: "",
@@ -88,6 +103,8 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
     age: members[0].age,
     gender: members[0].gender,
     phone: members[0].phone,
+    nin: members[0].nin,
+    bvn: members[0].bvn,
     location_address: household.location_address,
     gps_latitude: household.gps_latitude,
     gps_longitude: household.gps_longitude,
@@ -205,6 +222,8 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
       age: member.age,
       gender: member.gender,
       phone: member.phone,
+      nin: member.nin,
+      bvn: member.bvn,
       location_address: household.location_address,
       gps_latitude: household.gps_latitude,
       gps_longitude: household.gps_longitude,
@@ -401,8 +420,14 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
                       <option value="Other">Other</option>
                     </select>
                   </Field>
-                  <Field label="Phone Number" className="sm:col-span-2">
+                  <Field label="Phone Number">
                     <Input type="tel" value={member.phone} onChange={(e) => updateMember(index, 'phone', e.target.value)} placeholder="+234xxxxxxxxxx" />
+                  </Field>
+                  <Field label="NIN">
+                    <Input value={member.nin} onChange={(e) => updateMember(index, 'nin', e.target.value)} placeholder="11-digit NIN" />
+                  </Field>
+                  <Field label="BVN">
+                    <Input value={member.bvn} onChange={(e) => updateMember(index, 'bvn', e.target.value)} placeholder="11-digit BVN" />
                   </Field>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
@@ -550,9 +575,25 @@ export default function CensusForm({ isOnline }: CensusFormProps) {
             <Send className="w-4 h-4 mr-2" />
             {isSubmitting ? 'Submitting...' : isOnline ? 'Submit Online' : 'Store for Later'}
           </Button>
-          <Button type="button" variant="outline" onClick={resetForm}>
-            <Trash2 className="w-4 h-4 mr-1.5" /> Clear
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="outline">
+                <Trash2 className="w-4 h-4 mr-1.5" /> Clear
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear this form?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will remove all entered household details and custom fields. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>No</AlertDialogCancel>
+                <AlertDialogAction onClick={resetForm}>Yes</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </form>
     </motion.div>
