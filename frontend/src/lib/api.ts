@@ -298,6 +298,19 @@ export const api = {
     return res.json();
   },
 
+  getGeoReport: async (token: string, params: { timeframe?: string } = {}) => {
+    const query = new URLSearchParams();
+    if (params.timeframe) query.set('timeframe', params.timeframe);
+
+    const res = await fetch(`${API_BASE}/api/verify/geo-report?${query.toString()}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error('Failed to fetch geo-integrity report');
+    return res.json();
+  },
+
   getVerificationRecord: async (recordId: string, token: string) => {
     const res = await fetch(`${API_BASE}/api/verify/record/${recordId}`, {
       headers: {
